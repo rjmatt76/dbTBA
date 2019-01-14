@@ -708,6 +708,11 @@ void boot_db(void)
   log("Loading help entries.");
   index_boot(DB_BOOT_HLP);
 
+  #include "players.h"
+
+  log("Connect to mysql server.");
+  get_mysql_database_conn();
+
   log("Generating player index.");
   build_player_index();
 

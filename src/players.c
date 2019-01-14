@@ -22,6 +22,7 @@
 #include "config.h" /* for pclean_criteria[] */
 #include "dg_scripts.h" /* To enable saving of player variables to disk */
 #include "quest.h"
+#include "players.h"
 
 #define LOAD_HIT	0
 #define LOAD_MANA	1
@@ -41,6 +42,34 @@ static void load_quests(FILE *fl, struct char_data *ch);
 static void load_HMVS(struct char_data *ch, const char *line, int mode);
 static void write_aliases_ascii(FILE *file, struct char_data *ch);
 static void read_aliases_ascii(FILE *file, struct char_data *ch, int count);
+
+/* global database connection - might end up removing this global connection
+   originally had the idea that one connection could be used instead of repeated connections,
+   but right now this is just used on initialization to see if the database is there
+*/   
+MYSQL *database_conn;
+MYSQL *create_conn_to_mud_database(MYSQL *conn);
+static int test_error(MYSQL *mysql, int status);
+static int test_stmt_error(MYSQL_STMT *stmt, int status);
+
+void get_mysql_database_conn()
+{
+  if(database_conn == NULL)
+  {
+    database_conn = mysql_init(NULL);
+
+    /* ip address of mysql server, database, password, tablename */
+    if( mysql_real_connect(database_conn, MYSQL_HOST, MYSQL_USER, MYSQL_PASS, MYSQL_DB, 0, NULL, 0) )
+      log("MYSQLINFO: Successfully connected to database.");
+    else
+      log("MYSQLINFO: Failure connecting to database.");
+  }
+
+  if (mysql_query(database_conn, CREATE_PLAYERFILE_TABLE))
+  {
+    log("MYSQLINFO: CREATE TABLE failed, %s\n", mysql_error(database_conn));
+  }
+}
 
 /* New version to build player index for ASCII Player Files. Generate index
  * table for the player file. */
@@ -222,6 +251,269 @@ char *get_name_by_id(long id)
   return (NULL);
 }
 
+/*  commented out these test structures, still figuring it out
+
+ struct mysql_save_table_info {
+   const char column_name[MAX_STRING_LENGTH];
+   long data_type;
+   char * save_location;
+  };
+  
+  cpp_extern const struct mysql_save_table_info playerfile_table[] = 
+  {
+        //maybe add a function pointer field to make assignments
+        { "Ac",             MYSQL_TYPE_LONG, GET_AC(ch)         }, 
+        { "Act_0",          MYSQL_TYPE_LONG, PLR_FLAGS(ch)[0]   }, // bitvector
+        { "Act_1",          MYSQL_TYPE_LONG, PLR_FLAGS(ch)[1]   }, // bitvector
+        { "Act_2",          MYSQL_TYPE_LONG, PLR_FLAGS(ch)[2]   }, // bitvector
+        { "Act_3",          MYSQL_TYPE_LONG, PLR_FLAGS(ch)[3]   }, // bitvector
+        { "Aff_0",          MYSQL_TYPE_LONG, AFF_FLAGS(ch)[1]   }, // bitvector
+        { "Aff_1",          MYSQL_TYPE_LONG, AFF_FLAGS(ch)[2]   }, // bitvector
+        { "Aff_2",          MYSQL_TYPE_LONG, AFF_FLAGS(ch)[3]   }, // bitvector
+        { "Aff_3",          MYSQL_TYPE_LONG, AFF_FLAGS(ch)[4]   }, // bitvector
+	      { "AF_SPELL",       MYSQL_TYPE_LONG, af.spell           },
+        { "AF_DURATION",    MYSQL_TYPE_LONG, af.duration        },
+        { "AF_MODIFIER",    MYSQL_TYPE_LONG, af.modifier        },
+        { "AF_LOCATION",    MYSQL_TYPE_LONG, af.location        },
+        { "AF_BITVECTOR_0", MYSQL_TYPE_LONG, af.bitvector[0]    },
+        { "AF_BITVECTOR_1", MYSQL_TYPE_LONG, af.bitvector[1]    },
+        { "AF_BITVECTOR_2", MYSQL_TYPE_LONG, af.bitvector[2]    },
+        { "AF_BITVECTOR_3", MYSQL_TYPE_LONG, af.bitvector[3]    },
+        { "Alin",           MYSQL_TYPE_LONG, GET_ALIGNMENT(ch)  },
+    //  { "Alis",           MYSQL_TYPE_LONG, read_aliases_ascii(fl, ch, atoi(line) },
+        { "Badp",           MYSQL_TYPE_LONG, GET_BAD_PWS(ch)       },
+        { "Bank",           MYSQL_TYPE_LONG, GET_BANK_GOLD(ch)     },
+        { "Brth",           MYSQL_TYPE_LONG, ch->player.time.birth },
+        { "Cha",            MYSQL_TYPE_LONG, ch->real_abils.cha    },
+        { "Clas",           MYSQL_TYPE_LONG, GET_CLASS(ch)         },
+        { "Con",            MYSQL_TYPE_LONG, ch->real_abils.con    },
+        { "Desc",           MYSQL_TYPE_LONG, ch->player.description },
+        { "Dex",            MYSQL_TYPE_LONG, ch->real_abils.dex     },
+        { "Drnk",           MYSQL_TYPE_LONG, GET_COND(ch, DRUNK)    },
+        { "Drol",           MYSQL_TYPE_LONG, GET_DAMROLL(ch)        },
+        { "Exp",            MYSQL_TYPE_LONG, GET_EXP(ch)            },
+        { "Frez",           MYSQL_TYPE_LONG, GET_FREEZE_LEV(ch)     },
+        { "Gold",           MYSQL_TYPE_LONG, GET_GOLD(ch)           },
+    //  { "Hit",            MYSQL_TYPE_LONG, load_HMVS(ch, line, LOAD_HIT); },
+        { "Hite",           MYSQL_TYPE_LONG, GET_HEIGHT(ch)         },
+        { "Host",           MYSQL_TYPE_STRING, GET_HOST(ch)         },
+        { "Hrol",           MYSQL_TYPE_LONG, GET_HITROLL(ch)        },
+        { "Hung",           MYSQL_TYPE_LONG, GET_COND(ch, HUNGER)   },
+        { "Id",             MYSQL_TYPE_LONG, GET_IDNUM(ch)          },
+        { "Int",            MYSQL_TYPE_LONG, ch->real_abils.intel   },
+        { "Invs",           MYSQL_TYPE_LONG, GET_INVIS_LEV(ch)      },
+        { "Last",           MYSQL_TYPE_LONG, ch->player.time.logon  },
+        { "Lern",           MYSQL_TYPE_LONG, GET_PRACTICES(ch)      },
+        { "Levl",           MYSQL_TYPE_LONG, GET_LEVEL(ch)          },
+        { "Lmot",           MYSQL_TYPE_LONG, GET_LAST_MOTD(ch)      },
+        { "Lnew",           MYSQL_TYPE_LONG, GET_LAST_NEWS(ch)      },
+        { "Mana",           MYSQL_TYPE_LONG, load_HMVS(ch, line, LOAD_MANA) },
+        { "Move",           MYSQL_TYPE_LONG, load_HMVS(ch, line, LOAD_MOVE) },
+        { "Name",           MYSQL_TYPE_STRING, GET_PC_NAME(ch)      },
+        { "Olc",            MYSQL_TYPE_LONG, GET_OLC_ZONE(ch)       },
+        { "Page",           MYSQL_TYPE_LONG, GET_PAGE_LENGTH(ch)    },
+        { "Pass",           MYSQL_TYPE_STRING, GET_PASSWD(ch)       },
+        { "Plyd",           MYSQL_TYPE_LONG, GET_PAGE_LENGTH(ch)    },
+        { "PfIn",           MYSQL_TYPE_STRING, POOFIN(ch)           },
+        { "PfOt",           MYSQL_TYPE_STRING, POOFOUT(ch)          },
+        { "Pref_0",         MYSQL_TYPE_LONG, PRF_FLAGS(ch)[0]       },
+        { "Pref_1",         MYSQL_TYPE_LONG, PRF_FLAGS(ch)[1]       },
+        { "Pref_2",         MYSQL_TYPE_LONG, PRF_FLAGS(ch)[2]       },
+        { "Pref_3",         MYSQL_TYPE_LONG, PRF_FLAGS(ch)[3]       },
+        { "Qstp",           MYSQL_TYPE_LONG, GET_QUESTPOINTS(ch)        },
+        { "Qpnt",           MYSQL_TYPE_LONG, GET_QUESTPOINTS(ch)        },
+        { "Qcur",           MYSQL_TYPE_LONG, GET_QUEST(ch)              },
+        { "Qcnt",           MYSQL_TYPE_LONG, GET_QUEST_COUNTER(ch)      },
+//      { "Qest",           MYSQL_TYPE_LONG, load_quests(fl, ch)        },
+        { "Room",           MYSQL_TYPE_LONG, GET_LOADROOM(ch)           },
+        { "Sex",            MYSQL_TYPE_LONG, GET_SEX(ch)                },
+        { "ScrW",           MYSQL_TYPE_LONG, GGET_SCREEN_WIDTH(ch)          },
+//      { "Skil",           MYSQL_TYPE_LONG, load_skills(fl, ch)            },
+//      { "Str",            MYSQL_TYPE_LONG, load_HMVS(ch, line, LOAD_STRENGTH) },
+        { "Thir",           MYSQL_TYPE_LONG, GET_COND(ch, THIRST)           },
+        { "Thr1",           MYSQL_TYPE_LONG, GET_SAVE(ch, 0)                },
+        { "Thr2",           MYSQL_TYPE_LONG, GET_SAVE(ch, 1)                },
+        { "Thr3",           MYSQL_TYPE_LONG, GET_SAVE(ch, 2)                },
+        { "Thr4",           MYSQL_TYPE_LONG, GET_SAVE(ch, 3)                },
+        { "Thr5",           MYSQL_TYPE_LONG, GET_SAVE(ch, 4)                },
+        { "Titl",           MYSQL_TYPE_STRING, GET_TITLE(ch)                },
+//      { "Trig",           MYSQL_TYPE_STRING, GET_TITLE(ch)                },
+//      { "Vars",           MYSQL_TYPE_LONG, read_saved_vars_ascii(fl, ch, atoi(line) },
+        { "Wate",           MYSQL_TYPE_LONG, GET_WEIGHT(ch)                 },
+        { "Wimp",           MYSQL_TYPE_LONG, GET_WIMP_LEV(ch)               },
+        { "Wis",            MYSQL_TYPE_LONG, ch->real_abils.wis             }
+}
+*/
+
+int select_player_from_mysql_by_name(MYSQL *conn, char *statement, int num_columns, const char *name, char_data *ch)
+{
+  MYSQL_STMT *stmt;
+  MYSQL_BIND param_bind[1], col_bind[num_columns]; /* variable sized array may cause a problem in certain compilers */
+  char param_name[50];
+  int status;
+  long str_length;
+
+  //struct that receives the column values from col_bind
+  struct column {
+    char name[MAX_STRING_LENGTH];
+    char col_string_buffer[MAX_STRING_LENGTH];
+    int col_int_buffer;
+    my_bool is_null;
+    unsigned long col_length;
+    unsigned long buffer_length;
+  };
+  struct column col_values[num_columns];
+
+  /* initialize the prepared statement */
+  stmt = mysql_stmt_init(conn);
+
+  if (!stmt)
+  {
+    log("MYSQLINFO: Could not initialize statement\n");
+    return -1;
+  }
+  log("MYSQLINFO: Initialized statement");
+
+  /* prepare the statement */
+  status = mysql_stmt_prepare(stmt, statement, strlen(statement));
+  test_stmt_error(stmt, status);
+  log("MYSQLINFO: prepared statement parameter count - %d", mysql_stmt_param_count(stmt));
+
+  strcpy(param_name, name);
+
+  /* initialize the binding for the parameters (? in SQL statement) */
+  memset(param_bind,0,sizeof(param_bind));
+
+  param_bind[0].buffer_type=MYSQL_TYPE_STRING;
+  param_bind[0].buffer=(char *) param_name;
+  param_bind[0].buffer_length=50;
+  param_bind[0].is_null=0;
+  param_bind[0].length= &str_length;
+//  param_bind[0].length= &param_bind[0].buffer_length;
+
+  log("MYSQLINFO: bind setup %s %lu", param_bind[0].buffer, param_bind[0].length);
+  /* bind parameters */
+  status = mysql_stmt_bind_param(stmt, param_bind);
+  test_stmt_error(stmt, status);
+
+  /* copy the string to param_name which the param_bind[x].buffer is pointing to */
+  strncpy(param_name, name, 50); /* string  */
+  str_length= strlen(param_name);
+
+  /* execute the statement now that it has its parameters defined */
+  log("MYSQLINFO: stmt executing");
+  status = mysql_stmt_execute(stmt);
+  
+  test_stmt_error(stmt, status);
+
+  log("MYSQLINFO: stmt executed");
+  MYSQL_RES *result;
+  int num_fields;
+
+  /* get the meta data from the executed stmt and store in result (column names, etc) */
+  result = mysql_stmt_result_metadata(stmt);
+  num_fields = mysql_num_fields(result);
+  log("MYSQLINFO: Fields - %d", num_fields);
+
+  if(num_fields != num_columns)
+  {
+    log("MYSQLINFO: invalid number of columns to fields %d - %d", num_fields, num_columns);
+  }
+  
+  /* prepare the col_bind to receive the values of the query */
+  memset(col_bind,0,sizeof(MYSQL_BIND)*num_columns);
+  MYSQL_FIELD *field; 
+  
+  /* point the col_bind to the col_values which is our own structure to store these values in
+  */
+  int i=0;
+  while((field = mysql_fetch_field(result)))
+  {
+    log("MYSQLINFO: Field - %s %s",field->name, field->type == MYSQL_TYPE_VAR_STRING ? "string": "not string");
+
+    /* store our metadata (column name) in our col_value structure */
+    strcpy(col_values[i].name,field->name);
+    
+    /* right now just either mysql string or longs  */
+    if(field->type == MYSQL_TYPE_VAR_STRING)
+    {
+      col_bind[i].buffer_type=MYSQL_TYPE_STRING;
+      col_bind[i].buffer=(char *) (col_values[i].col_string_buffer);
+      col_bind[i].buffer_length=150;
+      col_bind[i].length = &col_values[i].buffer_length;
+    }
+    else
+    {
+      col_bind[i].buffer_type=MYSQL_TYPE_LONG;
+      col_bind[i].buffer=(int *)(&col_values[i].col_int_buffer);
+//      col_bind[i].length= &col_values[i].col_length;
+    }
+    col_bind[i].is_null=(&col_values[i].is_null);
+    i++;
+  }
+ 
+  log("MYSQLINFO: binding resultset columns");
+  /* now actually bind the result values of the query to col_bind which also fills col_values */
+  if (mysql_stmt_bind_result(stmt, col_bind))
+  {
+    log("MYSQLINFO:  mysql_stmt_bind_result() failed");
+    log(" %s\n", mysql_stmt_error(stmt));
+    return -1;
+  }
+
+  /* we could probably return this data to another function for assignments */
+  while (!mysql_stmt_fetch(stmt))
+  {
+    for(i = 0; i < num_columns; i++)
+    {
+      if(col_values[i].name != NULL)
+      {
+        log("MYSQLINFO: field_name_meta: %s", col_values[i].name);
+        /* These assignments will probably be made elsewhere */
+        if(!strcmp(col_values[i].name, "Titl")) GET_TITLE(ch) = strdup(col_values[i].col_string_buffer == NULL? "<NULL>": col_values[i].col_string_buffer);
+        else if (!strcmp(col_values[i].name, "Cha"))   ch->real_abils.cha = (col_values[i].col_int_buffer);
+        else if (!strcmp(col_values[i].name, "Clas"))  GET_CLASS(ch)      = (col_values[i].col_int_buffer);
+        else if (!strcmp(col_values[i].name, "Con"))   ch->real_abils.con = (col_values[i].col_int_buffer);
+        else if (!strcmp(col_values[i].name, "Sex"))   GET_SEX(ch) = (col_values[i].col_int_buffer);
+        else if (!strcmp(col_values[i].name, "Str"))   ch->real_abils.str = (col_values[i].col_int_buffer);
+      }
+    }
+  }
+
+  mysql_free_result(result);
+  /* Close the statement */
+  if (mysql_stmt_close(stmt))
+  {
+    /* mysql_stmt_close() invalidates stmt, so call          */
+    /* mysql_error(mysql) rather than mysql_stmt_error(stmt) */
+    test_error(conn, status);
+  }
+  log("MYSQLINFO: stmt closed");
+  return 1;
+}
+
+static int test_error(MYSQL *mysql, int status)
+{
+  if (status)
+  {
+    log("MYSQLINFO: Error: %s (errno: %d)\n",
+            mysql_error(mysql), mysql_errno(mysql));
+    return -1;
+  }
+  return 1;
+}
+
+static int test_stmt_error(MYSQL_STMT *stmt, int status)
+{
+  if (status)
+  {
+    log("MYSQLINFO: Error: %s (errno: %d)\n",
+            mysql_stmt_error(stmt), mysql_stmt_errno(stmt));
+    return -1;
+  }
+  return 1;
+}
+
 /* Stuff related to the save/load player system. */
 /* New load_char reads ASCII Player Files. Load a char, TRUE if loaded, FALSE
  * if not. */
@@ -305,6 +597,25 @@ int load_char(const char *name, struct char_data *ch)
     for (i = 0; i < PR_ARRAY_MAX; i++)
       PRF_FLAGS(ch)[i] = PFDEF_PREFFLAGS;
 
+    /* begin test mysql load code */
+    MYSQL *conn = NULL;
+
+    if((conn = create_conn_to_mud_database(conn)) == NULL)
+    {
+      log("MYSQLINFO: Error connecting to database");
+      return -1;
+    }
+  
+    /* checking the database for the Name (this should be ID later, but currently the player 
+       id comes from the playerfile instead of the id in the index for some reason)
+    */
+    select_player_from_mysql_by_name(conn,"SELECT ID,Clas,Sex,Titl,Str,Con FROM strife_mud.playerfile WHERE Name = ?", 6, name, ch);
+    mysql_close(conn);
+
+    //if(USING_MYSQL_DATABASE_FOR_PLAYERFILE)
+    //  return 1;
+    /* end of test mysql load code */
+ 
     while (get_line(fl, line)) {
       tag_argument(line, tag);
 
@@ -339,12 +650,12 @@ int load_char(const char *name, struct char_data *ch)
 	else if (!strcmp(tag, "Brth"))	ch->player.time.birth	= atol(line);
 	break;
 
-      case 'C':
+/*      case 'C':
 	     if (!strcmp(tag, "Cha "))	ch->real_abils.cha	= atoi(line);
 	else if (!strcmp(tag, "Clas"))	GET_CLASS(ch)		= atoi(line);
 	else if (!strcmp(tag, "Con "))	ch->real_abils.con	= atoi(line);
 	break;
-
+*/
       case 'D':
 	     if (!strcmp(tag, "Desc"))	ch->player.description	= fread_string(fl, buf2);
 	else if (!strcmp(tag, "Dex "))	ch->real_abils.dex	= atoi(line);
@@ -446,7 +757,7 @@ int load_char(const char *name, struct char_data *ch)
 	else if (!strcmp(tag, "Thr3"))	GET_SAVE(ch, 2)		= atoi(line);
 	else if (!strcmp(tag, "Thr4"))	GET_SAVE(ch, 3)		= atoi(line);
 	else if (!strcmp(tag, "Thr5"))	GET_SAVE(ch, 4)		= atoi(line);
-	else if (!strcmp(tag, "Titl"))	GET_TITLE(ch)		= strdup(line);
+	//else if (!strcmp(tag, "Titl"))	GET_TITLE(ch)		= strdup(line);
         else if (!strcmp(tag, "Trig") && CONFIG_SCRIPT_PLAYERS) {
           if ((t_rnum = real_trigger(atoi(line))) != NOTHING) {
             t = read_trigger(t_rnum);
@@ -485,6 +796,115 @@ int load_char(const char *name, struct char_data *ch)
   }
   fclose(fl);
   return(id);
+}
+
+/* should close the mysql connection and log an error */
+void close_mysqlcon_with_error(MYSQL *conn)
+{
+  char buf[MAX_STRING_LENGTH];
+
+  sprintf(buf, "%s", mysql_error(conn));
+  log("MYSQLINFO: %s", buf);
+  mysql_close(conn);
+}
+
+MYSQL *create_conn_to_mud_database(MYSQL *conn)
+{
+  char buf[MAX_STRING_LENGTH];
+
+  conn = mysql_init(NULL);
+
+  if (conn == NULL)
+  {
+      sprintf(buf, "mysql_init() failed\n");
+      log("MYSQLINFO: %s", buf);
+      return NULL;
+  }
+
+  if (mysql_real_connect(conn, MYSQL_HOST, MYSQL_USER, MYSQL_PASS,
+          MYSQL_DB, 0, NULL, 0) == NULL)
+  {
+      close_mysqlcon_with_error(conn);
+      return NULL;
+  }
+
+  return conn;
+}
+
+void save_char_mysql(struct char_data * ch)
+{
+  MYSQL_RES *result;
+  MYSQL_ROW row;
+  char buf[MAX_STRING_LENGTH];
+  char column_buf[MAX_STRING_LENGTH];
+  MYSQL *conn = NULL;
+
+  if((conn = create_conn_to_mud_database(conn)) == NULL)
+  {
+    log("MYSQLINFO: Error connecting to database");
+    return;
+  }
+
+  /* checking the database for the ch ID */
+  sprintf(buf, "SELECT ID FROM strife_mud.playerfile WHERE ID = %ld", GET_IDNUM(ch));
+  if (mysql_query(conn, buf))
+  {
+    close_mysqlcon_with_error(conn);
+    log("MYSQLINFO: %s", buf);
+    return;
+  }
+
+  result = mysql_store_result(conn);
+  
+  if (result == NULL) 
+  {
+    close_mysqlcon_with_error(conn);
+    log("MYSQLINFO: %s", buf);
+    return;
+  }
+
+  row = mysql_fetch_row(result);
+  
+  snprintf(buf, sizeof(buf), "MYSQLINFO: %ld mysql_numrows", (long)mysql_num_rows(result));
+  log("MYSQLINFO: %s", buf);
+
+  /* if not found in the database then insert a new record with name and ID */
+  if(mysql_num_rows(result) < 1)
+  {
+    //INSERT NEW Player File
+    log("MYSQLINFO: Inserting new player");
+    snprintf(buf, sizeof(buf), "INSERT INTO strife_mud.playerfile (ID, Name) VALUES(%ld, '%s')", GET_IDNUM(ch), GET_NAME(ch));
+    mysql_query(database_conn, buf);
+    log("MYSQLINFO: %s", buf);
+  }
+
+  //UPDATE player file
+  log("MYSQLINFO: Updating Player");
+
+  snprintf(column_buf, sizeof(column_buf), " ");
+  snprintf(buf, sizeof(buf), "Name = '%s',", GET_NAME(ch)); 
+  strncat(column_buf, buf, sizeof(column_buf) - strlen(column_buf) - 1);
+  snprintf(buf, sizeof(buf), "Pass = '%s',", GET_PASSWD(ch));
+  strncat(column_buf, buf, sizeof(column_buf) - strlen(column_buf) - 1);
+  snprintf(buf, sizeof(buf), "Titl = '%s',", GET_TITLE(ch));
+  strncat(column_buf, buf, sizeof(column_buf) - strlen(column_buf) - 1);
+  snprintf(buf, sizeof(buf), "Sex = %d,", GET_SEX(ch));
+  strncat(column_buf, buf, sizeof(column_buf) - strlen(column_buf) - 1);
+  snprintf(buf, sizeof(buf), "Levl = %d,", GET_LEVEL(ch));
+  strncat(column_buf, buf, sizeof(column_buf) - strlen(column_buf) - 1);
+  snprintf(buf, sizeof(buf), "Cha = %d,", ch->real_abils.cha);
+  strncat(column_buf, buf, sizeof(column_buf) - strlen(column_buf) - 1);
+  snprintf(buf, sizeof(buf), "Clas = %d,", GET_CLASS(ch));
+  strncat(column_buf, buf, sizeof(column_buf) - strlen(column_buf) - 1);
+  snprintf(buf, sizeof(buf), "Con = %d", ch->real_abils.con);
+  strncat(column_buf, buf, sizeof(column_buf) - strlen(column_buf) - 1);
+
+  snprintf(buf, sizeof(buf), "UPDATE strife_mud.playerfile SET%s WHERE ID = %ld", column_buf, GET_IDNUM(ch));
+  mysql_free_result(result);
+  log("MYSQLINFO: %s", buf);
+
+  /* updating with the global database_conn*/
+  mysql_query(database_conn, buf);
 }
 
 /* Write the vital data of a player to the player file. */
@@ -562,6 +982,8 @@ void save_char(struct char_data * ch)
 
   ch->aff_abils = ch->real_abils;
   /* end char_to_store code */
+
+  save_char_mysql(ch);
 
   if (GET_NAME(ch))				fprintf(fl, "Name: %s\n", GET_NAME(ch));
   if (GET_PASSWD(ch))				fprintf(fl, "Pass: %s\n", GET_PASSWD(ch));
