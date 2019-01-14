@@ -5522,6 +5522,9 @@ EOF
   echo "$ac_t""no" 1>&6
 fi
 
+# need to figure out the best place to put these two lines
+LIBS="-lmysqlclient -I/usr/include/mysql  $LIBS"
+MYFLAGS="$MYFLAGS -lz -lmysqlclient -I/usr/include/mysql"
 
 trap '' 1 2 15
 cat > confcache <<\EOF
