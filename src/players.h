@@ -11,14 +11,6 @@ void get_mysql_database_conn();
 /* use mysql database instead of ascii pfiles */
 #define USING_MYSQL_DATABASE_FOR_PLAYERFILE 1
 
-/* for testing */
-#define INSERT_INITIAL_IMPL "INSERT INTO `strife_mud`.`playerfile` ( \
-(ID, NAME, Pass, Levl) \
-VALUES \
-(1,'Cyric','CyiG00srz6VKI',34),\
-(2,'Vanian','VaCqBBKokkbCA',34),\
-(3,'Testchar','Te5A5krXbaxiI',1)"\
-
 /* need to change types/sizes later */
 #define CREATE_PLAYERFILE_TABLE "CREATE TABLE IF NOT EXISTS `strife_mud`.`playerfile` ( \
   `ID` int(11) NOT NULL, \
@@ -62,3 +54,29 @@ VALUES \
   `Clas` int(11) DEFAULT NULL, \
   PRIMARY KEY (`ID`), \
   UNIQUE KEY `idx_playerfile_Name` (`Name`) ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
+
+#define MYSQL_QUERY_INSERT 0
+#define MYSQL_QUERY_SELECT 1
+#define MYSQL_QUERY_UPDATE 2
+#define MYSQL_QUERY_DELETE 3
+
+struct mysql_column_bind_adapter {
+  const char *column_name;
+  long data_type;
+};
+
+struct mysql_parameter_bind_adapter {
+  char * string_data;
+  int int_data;
+  long data_type;
+  int data_length;
+};
+
+struct mysql_bind_column {
+  char name[MAX_INPUT_LENGTH];
+  char col_string_buffer[MAX_INPUT_LENGTH];
+  int col_int_buffer;
+  my_bool is_null;
+  unsigned long col_length;
+  unsigned long buffer_length;
+};
