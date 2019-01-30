@@ -1624,7 +1624,6 @@ void nanny(struct descriptor_data *d, char *arg)
     /* Now GET_NAME() will work properly. */
     init_char(d->character);
     save_char(d->character);
-    save_player_index();
     write_to_output(d, "%s\r\n*** PRESS RETURN: ", motd);
     STATE(d) = CON_RMOTD;
     /* make sure the last log is updated correctly. */
