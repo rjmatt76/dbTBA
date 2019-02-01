@@ -24,11 +24,6 @@
 #include "quest.h"
 #include "players.h"
 
-#define LOAD_HIT	0
-#define LOAD_MANA	1
-#define LOAD_MOVE	2
-#define LOAD_STRENGTH	3
-
 #define PT_PNAME(i) (player_table[(i)].name)
 #define PT_IDNUM(i) (player_table[(i)].id)
 #define PT_LEVEL(i) (player_table[(i)].level)
@@ -36,10 +31,9 @@
 #define PT_LLAST(i) (player_table[(i)].last)
 
 /* local functions */
-static void load_affects(FILE *fl, struct char_data *ch);
+static void load_affects(char *affects_str, struct char_data *ch);
 static void load_skills(FILE *fl, struct char_data *ch);
 static void load_quests(FILE *fl, struct char_data *ch);
-static void load_HMVS(struct char_data *ch, const char *line, int mode);
 static void write_aliases_ascii(FILE *file, struct char_data *ch);
 static void read_aliases_ascii(FILE *file, struct char_data *ch, int count);
 
@@ -51,9 +45,9 @@ MYSQL *database_conn;
 static int test_error(MYSQL *mysql, int status);
 static int test_stmt_error(MYSQL_STMT *stmt, int status);
 MYSQL *create_conn_to_mud_database(MYSQL *conn);
-void load_playerfile_index_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, struct char_data *ch, MYSQL *stmt);
+void load_playerfile_index_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, struct char_data *ch, MYSQL_STMT *stmt);
 int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameters, struct mysql_column_bind_adapter *columns, char *statement,
-                     int num_columns, int num_parameters, void (*load_function)(struct mysql_bind_column *, int, int, void *, MYSQL *stmt), 
+                     int num_columns, int num_parameters, void (*load_function)(struct mysql_bind_column *, int, int, void *, MYSQL_STMT *stmt), 
                      void *ch, int querytype);
 
 
@@ -76,14 +70,6 @@ void get_mysql_database_conn()
   }
 }
 
-/* New version to build player index for ASCII Player Files. Generate index
- * table for the player file. */
-void build_player_index(void)
-{
-  build_player_index_mysql();
-  return;
-}
-
 cpp_extern struct mysql_column_bind_adapter playerfile_table_index[] =
 {
   { "ID",             MYSQL_TYPE_LONG           },
@@ -94,7 +80,7 @@ cpp_extern struct mysql_column_bind_adapter playerfile_table_index[] =
   { "\n",             MYSQL_TYPE_LONG           }
 };
 
-void load_playerfile_index_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, struct char_data *ch, MYSQL *stmt)
+void load_playerfile_index_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, struct char_data *ch, MYSQL_STMT *stmt)
 {    
   int i, row;
   row = 0;
@@ -161,7 +147,7 @@ int select_player_index_from_mysql(MYSQL *conn)
   return 1;
 }
 
-void build_player_index_mysql()
+void build_player_index()
 {
   select_player_index_from_mysql(database_conn);
 }
@@ -290,14 +276,7 @@ cpp_extern struct mysql_column_bind_adapter playerfile_table[] =
   { "Aff_1",          MYSQL_TYPE_LONG    }, // bitvector
   { "Aff_2",          MYSQL_TYPE_LONG    }, // bitvector
   { "Aff_3",          MYSQL_TYPE_LONG    }, // bitvector
-//  { "AF_SPELL",       MYSQL_TYPE_LONG    },
-//  { "AF_DURATION",    MYSQL_TYPE_LONG    },
-//  { "AF_MODIFIER",    MYSQL_TYPE_LONG    },
-//  { "AF_LOCATION",    MYSQL_TYPE_LONG    },
-//  { "AF_BITVECTOR_0", MYSQL_TYPE_LONG    },
-//  { "AF_BITVECTOR_1", MYSQL_TYPE_LONG    },
-//  { "AF_BITVECTOR_2", MYSQL_TYPE_LONG    },
-//  { "AF_BITVECTOR_3", MYSQL_TYPE_LONG    },
+  { "Affs",           MYSQL_TYPE_VAR_STRING    },
   { "Alin",           MYSQL_TYPE_LONG    },
     //  { "Alis",           MYSQL_TYPE_LONG, read_aliases_ascii(fl, ch, atoi(line) },
   { "Badp",           MYSQL_TYPE_LONG    },
@@ -367,7 +346,7 @@ cpp_extern struct mysql_column_bind_adapter playerfile_table[] =
   { "\n",              MYSQL_TYPE_LONG    }
 };
 
-void load_playerfile_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, struct char_data *ch, MYSQL *stmt)
+void load_playerfile_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, struct char_data *ch, MYSQL_STMT *stmt)
 {    
   int i;
 
@@ -387,10 +366,7 @@ void load_playerfile_from_mysql(struct mysql_bind_column *fields, int num_fields
     else if (!strcmp(fields[i].name, "Aff_1"))   AFF_FLAGS(ch)[1] = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Aff_2"))   AFF_FLAGS(ch)[2] = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Aff_3"))   AFF_FLAGS(ch)[3] = (fields[i].col_int_buffer);
-//    else if (!strcmp(fields[i].name, "AF_BITVECTOR_0"))   af.bitvector[1] = (fields[i].col_int_buffer);
-//    else if (!strcmp(fields[i].name, "AF_BITVECTOR_1"))   af.bitvector[2] = (fields[i].col_int_buffer);
-//    else if (!strcmp(fields[i].name, "AF_BITVECTOR_2"))   af.bitvector[3] = (fields[i].col_int_buffer);
-//    else if (!strcmp(fields[i].name, "AF_BITVECTOR_3"))   af.bitvector[4] = (fields[i].col_int_buffer);
+    else if (!strcmp(fields[i].name, "Affs"))   load_affects(fields[i].col_string_buffer, ch);
     else if (!strcmp(fields[i].name, "Alin"))   GET_ALIGNMENT(ch) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Badp"))   GET_BAD_PWS(ch) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Bank"))   GET_BANK_GOLD(ch) = (fields[i].col_int_buffer);
@@ -398,8 +374,7 @@ void load_playerfile_from_mysql(struct mysql_bind_column *fields, int num_fields
     else if (!strcmp(fields[i].name, "Cha"))   ch->real_abils.cha = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Clas"))  GET_CLASS(ch)      = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Con"))   ch->real_abils.con = (fields[i].col_int_buffer);
-  
-//  { "Descr",          MYSQL_TYPE_VAR_STRING   },  //Desc is a keyword
+    else if (!strcmp(fields[i].name, "Descr"))   ch->player.description = strdup(fields[i].col_string_buffer);
     else if (!strcmp(fields[i].name, "Dex"))   ch->real_abils.dex = (fields[i].col_int_buffer);      
     else if (!strcmp(fields[i].name, "Drnk"))   GET_COND(ch, DRUNK) = (fields[i].col_int_buffer);      
     else if (!strcmp(fields[i].name, "Drol"))   GET_DAMROLL(ch) = (fields[i].col_int_buffer);      
@@ -469,14 +444,15 @@ void load_playerfile_from_mysql(struct mysql_bind_column *fields, int num_fields
   }
 }
 
-void update_playerfile_to_mysql_by_ID(MYSQL *conn, int ID, struct char_data *ch)
+void update_playerfile_to_mysql_by_ID(MYSQL *conn, int ID, struct char_data *ch, struct affected_type *affects)
 {
   int i, num_parameters;
   char buf[MAX_STRING_LENGTH];
   char parameter_buf[MAX_STRING_LENGTH];
+  char buf2[MAX_STRING_LENGTH];
   struct mysql_parameter_bind_adapter *parameters;
   struct mysql_column_bind_adapter *pft;
-
+    
   pft = &playerfile_table;
     
   snprintf(buf, sizeof(buf)-1, "UPDATE strife_mud.playerfile SET ");
@@ -525,22 +501,25 @@ void update_playerfile_to_mysql_by_ID(MYSQL *conn, int ID, struct char_data *ch)
     else if (!strcmp(playerfile_table[i].column_name, "Aff_3")) 
       parameters[i].int_data = (AFF_FLAGS(ch)[3]);
     /* incorrect for af flags , fix later */
-//    else if (!strcmp(playerfile_table[i].column_name, "AF_SPELL")) 
-//      parameters[i].column_name = (int*)(af.spell);
-//    else if (!strcmp(playerfile_table[i].column_name, "AF_DURATION")) 
-//      parameters[i].column_name = (int*)(af.duration);
-//    else if (!strcmp(playerfile_table[i].column_name, "AF_MODIFIER")) 
-//      parameters[i].column_name = (int*)(af.modifier);
-//    else if (!strcmp(playerfile_table[i].column_name, "AF_LOCATION")) 
-//      parameters[i].column_name = (int*)(af.location);
-//    else if (!strcmp(playerfile_table[i].column_name, "AF_BITVECTOR_0")) 
-//      parameters[i].column_name = (int*)(af.bitvector[0]);
-//    else if (!strcmp(playerfile_table[i].column_name, "AF_BITVECTOR_1")) 
-//      parameters[i].column_name = (int*)(af.bitvector[1]);
-//    else if (!strcmp(playerfile_table[i].column_name, "AF_BITVECTOR_2")) 
-//      parameters[i].column_name = (int*)(af.bitvector[2]);
-//    else if (!strcmp(playerfile_table[i].column_name, "AF_BITVECTOR_3")) 
-//      parameters[i].column_name = (int*)(af.bitvector[3]);
+    else if (!strcmp(playerfile_table[i].column_name, "Affs"))   
+    {
+      parameter_buf[0] = '\0';
+      struct affected_type *aff = NULL;
+      aff = affects;
+      while(aff)
+      {
+        if(aff->spell > 0)
+        {
+          snprintf(buf2, sizeof(buf2), "%d,%d,%d,%d,%d,%d,%d,%d:", aff->spell, aff->duration, aff->modifier, aff->location,
+                 aff->bitvector[0], aff->bitvector[1], aff->bitvector[2], aff->bitvector[3]);
+          strncat(parameter_buf, buf2, sizeof(buf2));
+              log("buf2 -> %s", buf2);   
+        }     
+        aff = aff->next;
+      }
+      log("parameter buf -> %s", parameter_buf);
+      parameters[i].string_data = strdup(parameter_buf);
+    }
     else if (!strcmp(playerfile_table[i].column_name, "Alin")) 
       parameters[i].int_data = (GET_ALIGNMENT(ch));
     else if (!strcmp(playerfile_table[i].column_name, "Badp")) 
@@ -564,7 +543,7 @@ void update_playerfile_to_mysql_by_ID(MYSQL *conn, int ID, struct char_data *ch)
         parameters[i].string_data = strdup(parameter_buf);
       }
       else
-        parameters[i].string_data = strdup("Description was blank");
+        parameters[i].string_data = strdup("Description was blank");     
     }
     else if (!strcmp(playerfile_table[i].column_name, "Dex")) 
       parameters[i].int_data = (ch->real_abils.dex);  
@@ -755,7 +734,7 @@ int select_player_from_mysql_by_name(MYSQL *conn, const char *name, struct char_
 }
 
 int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameters, struct mysql_column_bind_adapter *columns, char *statement,
-                     int num_columns, int num_parameters, void (*load_function)(struct mysql_bind_column *, int, int, void *, MYSQL *stmt), 
+                     int num_columns, int num_parameters, void (*load_function)(struct mysql_bind_column *, int, int, void *, MYSQL_STMT *stmt), 
                      void *ch, int querytype)
 {
   MYSQL_STMT *stmt;
@@ -789,7 +768,7 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
     {
       param_bind[i].buffer_type = MYSQL_TYPE_VAR_STRING;
       param_bind[i].buffer=(char *) parameters[i].string_data;
-      param_bind[i].buffer_length = 256;
+      param_bind[i].buffer_length = 4097;
       param_bind[i].is_null = 0;
       param_bind[i].length= &parameters[i].data_length;
     }
@@ -847,7 +826,7 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
       {
         col_bind[i].buffer_type=MYSQL_TYPE_STRING;
         col_bind[i].buffer=(char *) (col_values[i].col_string_buffer);
-        col_bind[i].buffer_length=150;
+        col_bind[i].buffer_length=4097;
         col_bind[i].length = &col_values[i].buffer_length;
       }
       else
@@ -918,10 +897,8 @@ static int test_stmt_error(MYSQL_STMT *stmt, int status)
 int load_char(const char *name, struct char_data *ch)
 {
   int id, i;
-  FILE *fl;
   char filename[40];
-  char buf[128], buf2[128], line[MAX_INPUT_LENGTH + 1], tag[6];
-  char f1[128], f2[128], f3[128], f4[128];
+  char buf[128], buf2[128], line[MAX_INPUT_LENGTH + 1];
   trig_data *t = NULL;
   trig_rnum t_rnum = NOTHING;
 
@@ -1189,7 +1166,6 @@ int load_char(const char *name, struct char_data *ch)
     GET_COND(ch, THIRST) = -1;
     GET_COND(ch, DRUNK) = -1;
   }
-//  fclose(fl);
   return(id);
 }
 
@@ -1226,12 +1202,11 @@ MYSQL *create_conn_to_mud_database(MYSQL *conn)
   return conn;
 }
 
-void save_char_mysql(struct char_data * ch)
+void save_char_mysql(struct char_data * ch, struct affected_type *aff)
 {
   MYSQL_RES *result;
   MYSQL_ROW row;
   char buf[MAX_STRING_LENGTH];
-  char column_buf[MAX_STRING_LENGTH];
   MYSQL *conn = NULL;
 
   if((conn = create_conn_to_mud_database(conn)) == NULL)
@@ -1276,7 +1251,7 @@ void save_char_mysql(struct char_data * ch)
   //UPDATE player file
   log("MYSQLINFO: Updating Player");
 
-  update_playerfile_to_mysql_by_ID(conn, GET_IDNUM(ch), ch);
+  update_playerfile_to_mysql_by_ID(conn, GET_IDNUM(ch), ch, aff);
 
 }
 
@@ -1284,10 +1259,9 @@ void save_char_mysql(struct char_data * ch)
 /* This is the ASCII Player Files save routine. */
 void save_char(struct char_data * ch)
 {
-  FILE *fl;
-  char filename[40], buf[MAX_STRING_LENGTH], bits[127], bits2[127], bits3[127], bits4[127];
+  char buf[MAX_STRING_LENGTH];
   int i, j, id, save_index = FALSE;
-  struct affected_type *aff, tmp_aff[MAX_AFFECT];
+  struct affected_type *aff; 
   struct obj_data *char_eq[NUM_WEARS];
   trig_data *t;
 
@@ -1324,22 +1298,37 @@ void save_char(struct char_data * ch)
       char_eq[i] = NULL;
   }
 
-  for (aff = ch->affected, i = 0; i < MAX_AFFECT; i++) {
-    if (aff) {
-      tmp_aff[i] = *aff;
-      for (j=0; j<AF_ARRAY_MAX; j++)
-        tmp_aff[i].bitvector[j] = aff->bitvector[j];
-      tmp_aff[i].next = 0;
-      aff = aff->next;
-    } else {
-      new_affect(&(tmp_aff[i]));
-      tmp_aff[i].next = 0;
+  struct affected_type *stored_aff = NULL;
+  struct affected_type *stored_affs = NULL;
+  struct affected_type *list_pointer = NULL;
+  
+  for(aff = ch->affected; aff; aff = aff->next)
+  {
+    CREATE(stored_aff, struct affected_type, 1);
+    
+    stored_aff->spell = aff->spell;
+    stored_aff->duration = aff->duration;
+    stored_aff->modifier = aff->modifier;
+    stored_aff->location = aff->location;
+      
+    for(j = 0; j < AF_ARRAY_MAX; j++)  
+      stored_aff->bitvector[j] = aff->bitvector[j];
+    
+    stored_aff->next = NULL;
+    
+    if(stored_affs == NULL)
+        stored_affs = stored_aff;
+    else
+    {
+        list_pointer = stored_affs;
+        while(list_pointer->next != NULL)
+            list_pointer = list_pointer->next;
+        list_pointer->next = stored_aff;
     }
   }
 
   /* Remove the affections so that the raw values are stored; otherwise the
    * effects are doubled when the char logs back in. */
-
   while (ch->affected)
     affect_remove(ch, ch->affected);
 
@@ -1349,7 +1338,7 @@ void save_char(struct char_data * ch)
   ch->aff_abils = ch->real_abils;
   /* end char_to_store code */
 
-  save_char_mysql(ch);
+  save_char_mysql(ch, stored_affs);
 //
 //  if (GET_NAME(ch))				fprintf(fl, "Name: %s\n", GET_NAME(ch));
 //  if (GET_PASSWD(ch))				fprintf(fl, "Pass: %s\n", GET_PASSWD(ch));
@@ -1361,9 +1350,7 @@ void save_char(struct char_data * ch)
 //  }
 //  if (POOFIN(ch))				fprintf(fl, "PfIn: %s\n", POOFIN(ch));
 //  if (POOFOUT(ch))				fprintf(fl, "PfOt: %s\n", POOFOUT(ch));
-//  if (GET_SEX(ch)	     != PFDEF_SEX)	fprintf(fl, "Sex : %d\n", GET_SEX(ch));
-//  if (GET_CLASS(ch)	   != PFDEF_CLASS)	fprintf(fl, "Clas: %d\n", GET_CLASS(ch));
-//  if (GET_LEVEL(ch)	   != PFDEF_LEVEL)	fprintf(fl, "Levl: %d\n", GET_LEVEL(ch));
+
 //
 //  fprintf(fl, "Id  : %ld\n", GET_IDNUM(ch));
 //  fprintf(fl, "Brth: %ld\n", (long)ch->player.time.birth);
@@ -1376,11 +1363,6 @@ void save_char(struct char_data * ch)
 //    fprintf(fl, "Lnew: %d\n", (int)GET_LAST_NEWS(ch));
 //
 //  if (GET_HOST(ch))				fprintf(fl, "Host: %s\n", GET_HOST(ch));
-//  if (GET_HEIGHT(ch)	   != PFDEF_HEIGHT)	fprintf(fl, "Hite: %d\n", GET_HEIGHT(ch));
-//  if (GET_WEIGHT(ch)	   != PFDEF_WEIGHT)	fprintf(fl, "Wate: %d\n", GET_WEIGHT(ch));
-//  if (GET_ALIGNMENT(ch)  != PFDEF_ALIGNMENT)	fprintf(fl, "Alin: %d\n", GET_ALIGNMENT(ch));
-//
-//
 //  sprintascii(bits,  PLR_FLAGS(ch)[0]);
 //  sprintascii(bits2, PLR_FLAGS(ch)[1]);
 //  sprintascii(bits3, PLR_FLAGS(ch)[2]);
@@ -1423,17 +1405,8 @@ void save_char(struct char_data * ch)
 //
 //  if (GET_STR(ch)	   != PFDEF_STR  || GET_ADD(ch)      != PFDEF_STRADD)  fprintf(fl, "Str : %d/%d\n", GET_STR(ch),  GET_ADD(ch));
 //
-//
-//  if (GET_INT(ch)	   != PFDEF_INT)	fprintf(fl, "Int : %d\n", GET_INT(ch));
-//  if (GET_WIS(ch)	   != PFDEF_WIS)	fprintf(fl, "Wis : %d\n", GET_WIS(ch));
-//  if (GET_DEX(ch)	   != PFDEF_DEX)	fprintf(fl, "Dex : %d\n", GET_DEX(ch));
-//  if (GET_CON(ch)	   != PFDEF_CON)	fprintf(fl, "Con : %d\n", GET_CON(ch));
-//  if (GET_CHA(ch)	   != PFDEF_CHA)	fprintf(fl, "Cha : %d\n", GET_CHA(ch));
-//
-//  if (GET_AC(ch)	   != PFDEF_AC)		fprintf(fl, "Ac  : %d\n", GET_AC(ch));
 //  if (GET_GOLD(ch)	   != PFDEF_GOLD)	fprintf(fl, "Gold: %d\n", GET_GOLD(ch));
 //  if (GET_BANK_GOLD(ch)	   != PFDEF_BANK)	fprintf(fl, "Bank: %d\n", GET_BANK_GOLD(ch));
-//  if (GET_EXP(ch)	   != PFDEF_EXP)	fprintf(fl, "Exp : %d\n", GET_EXP(ch));
 //  if (GET_HITROLL(ch)	   != PFDEF_HITROLL)	fprintf(fl, "Hrol: %d\n", GET_HITROLL(ch));
 //  if (GET_DAMROLL(ch)	   != PFDEF_DAMROLL)	fprintf(fl, "Drol: %d\n", GET_DAMROLL(ch));
 //  if (GET_OLC_ZONE(ch)     != PFDEF_OLC)        fprintf(fl, "Olc : %d\n", GET_OLC_ZONE(ch));
@@ -1464,29 +1437,29 @@ void save_char(struct char_data * ch)
 //    fprintf(fl, "0 0\n");
 //  }
 //
-//  /* Save affects */
-//  if (tmp_aff[0].spell > 0) {
-//    fprintf(fl, "Affs:\n");
-//    for (i = 0; i < MAX_AFFECT; i++) {
-//      aff = &tmp_aff[i];
-//      if (aff->spell)
-//		fprintf(fl, "%d %d %d %d %d %d %d %d\n", aff->spell, aff->duration,
-//          aff->modifier, aff->location, aff->bitvector[0], aff->bitvector[1], aff->bitvector[2], aff->bitvector[3]);
-//    }
-//    fprintf(fl, "0 0 0 0 0 0 0 0\n");
-//  }
-//
 //  write_aliases_ascii(fl, ch);
 //  save_char_vars_ascii(fl, ch);
 
-//  fclose(fl);
-
-  /* More char_to_store code to add spell and eq affections back in. */
-  for (i = 0; i < MAX_AFFECT; i++) {
-    if (tmp_aff[i].spell)
-      affect_to_char(ch, &tmp_aff[i]);
+  /* reaffect the stored affs */
+  for(stored_aff = stored_affs; stored_aff; stored_aff = stored_aff->next)
+  {
+    if(stored_aff && stored_aff->spell)
+    {
+      log("Affecting back %d %d %d %d %d %d %d %d", stored_aff->spell,  stored_aff->duration, stored_aff->modifier, stored_aff->location, 
+          stored_aff->bitvector[0], stored_aff->bitvector[1], stored_aff->bitvector[2], stored_aff->bitvector[3]);
+      affect_to_char(ch, stored_aff);
+    }
   }
-
+  //free temp storage
+  list_pointer = stored_affs;
+  while(stored_affs)
+  {
+     list_pointer = stored_affs;
+     stored_affs = stored_affs->next;
+     if(list_pointer)
+       free(list_pointer);   
+  }
+    
   for (i = 0; i < NUM_WEARS; i++) {
     if (char_eq[i])
 #ifndef NO_EXTRANEOUS_TRIGGERS
@@ -1581,39 +1554,45 @@ void clean_pfiles(void)
    * entries of the players that were just deleted. */
 }
 
-/* load_affects function now handles both 32-bit and
-   128-bit affect bitvectors for backward compatibility */
-static void load_affects(FILE *fl, struct char_data *ch)
+/* load_affects function uses 8 arguments from a char pointer instead of a file now */
+static void load_affects(char *affects_str, struct char_data *ch)
 {
-  int num = 0, num2 = 0, num3 = 0, num4 = 0, num5 = 0, num6 = 0, num7 = 0, num8 = 0, i, n_vars;
+  int num = 0, num2 = 0, num3 = 0, num4 = 0, num5 = 0, num6 = 0, num7 = 0, num8 = 0, i, j, n_vars, aff_start, affects_str_len;
   char line[MAX_INPUT_LENGTH + 1];
   struct affected_type af;
 
-  i = 0;
-  do {
-    new_affect(&af);
-    get_line(fl, line);
-    n_vars = sscanf(line, "%d %d %d %d %d %d %d %d", &num, &num2, &num3, &num4, &num5, &num6, &num7, &num8);
-    if (num > 0) {
-      af.spell = num;
-      af.duration = num2;
-      af.modifier = num3;
-      af.location = num4;
-      if (n_vars == 8) {              /* New 128-bit version */
-          af.bitvector[0] =  num5;
-          af.bitvector[1] =  num6;
-          af.bitvector[2] =  num7;
-          af.bitvector[3] =  num8;
-      } else if (n_vars == 5) {       /* Old 32-bit conversion version */
-        if (num5 > 0 && num5 <= NUM_AFF_FLAGS)  /* Ignore invalid values */
-          SET_BIT_AR(af.bitvector, num5);
-      } else {
-        log("SYSERR: Invalid affects in pfile (%s), expecting 5 or 8 values", GET_NAME(ch));
+  line[0] = '\0';
+  log("%s", affects_str);
+  aff_start = 0;
+  affects_str_len = strlen(affects_str);
+  for(i = 0; i < affects_str_len; i++)
+  {
+    if(affects_str[i] == ':')
+    {
+      for(j = aff_start; j < i; j++)
+      {
+        line[j-aff_start] = affects_str[j];
       }
-      affect_to_char(ch, &af);
-      i++;
+      aff_start = i+1;
+      line[j+1] = '\0';
+      new_affect(&af);
+      n_vars = sscanf(line, "%d,%d,%d,%d,%d,%d,%d,%d", &num, &num2, &num3, &num4, &num5, &num6, &num7, &num8);
+      if (num > 0) 
+      {
+        af.spell = num;
+        af.duration = num2;
+        af.modifier = num3;
+        af.location = num4;
+        af.bitvector[0] = num5;
+        af.bitvector[1] = num6;
+        af.bitvector[2] = num7;
+        af.bitvector[3] = num8;
+        if(n_vars != 8)
+          log("SYSERR: Invalid affects in pfile (%s), expecting 8 values", GET_NAME(ch));
+        affect_to_char(ch, &af);
+      }
     }
-  } while (num != 0);
+  }
 }
 
 static void load_skills(FILE *fl, struct char_data *ch)
@@ -1640,35 +1619,6 @@ void load_quests(FILE *fl, struct char_data *ch)
     if (num != NOTHING)
       add_completed_quest(ch, num);
   } while (num != NOTHING);
-}
-
-static void load_HMVS(struct char_data *ch, const char *line, int mode)
-{
-  int num = 0, num2 = 0;
-
-  sscanf(line, "%d/%d", &num, &num2);
-
-  switch (mode) {
-  case LOAD_HIT:
-    GET_HIT(ch) = num;
-    GET_MAX_HIT(ch) = num2;
-    break;
-
-  case LOAD_MANA:
-    GET_MANA(ch) = num;
-    GET_MAX_MANA(ch) = num2;
-    break;
-
-  case LOAD_MOVE:
-    GET_MOVE(ch) = num;
-    GET_MAX_MOVE(ch) = num2;
-    break;
-
-  case LOAD_STRENGTH:
-    ch->real_abils.str = num;
-    ch->real_abils.str_add = num2;
-    break;
-  }
 }
 
 static void write_aliases_ascii(FILE *file, struct char_data *ch)
