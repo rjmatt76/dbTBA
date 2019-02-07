@@ -33,6 +33,8 @@ static int apply_ac(struct char_data *ch, int eq_pos);
 static void update_object(struct obj_data *obj, int use);
 static void affect_modify_ar(struct char_data * ch, byte loc, sbyte mod, int bitv[], bool add);
 
+void cooldown_remove(struct char_data * ch, struct cooldown_node * cd);
+
 char *fname(const char *namelist)
 {
   static char holder[READ_SIZE];
@@ -264,17 +266,7 @@ void affect_total(struct char_data *ch)
   GET_WIS(ch) = MAX(0, MIN(GET_WIS(ch), i));
   GET_CON(ch) = MAX(0, MIN(GET_CON(ch), i));
   GET_CHA(ch) = MAX(0, MIN(GET_CHA(ch), i));
-  GET_STR(ch) = MAX(0, GET_STR(ch));
-
-  if (IS_NPC(ch) || GET_LEVEL(ch) >= LVL_GRGOD) {
-    GET_STR(ch) = MIN(GET_STR(ch), i);
-  } else {
-    if (GET_STR(ch) > 18) {
-      i = GET_ADD(ch) + ((GET_STR(ch) - 18) * 10);
-      GET_ADD(ch) = MIN(i, 100);
-      GET_STR(ch) = 18;
-    }
-  }
+  GET_STR(ch) = MAX(0, MIN(GET_STR(ch), i));
 }
 
 /* Insert an affect_type in a char_data structure. Automatically sets
@@ -876,6 +868,7 @@ void extract_char_final(struct char_data *ch)
   struct descriptor_data *d;
   struct obj_data *obj;
   int i;
+  struct cooldown_node *cd = NULL, *next_cd = NULL;
 
   if (IN_ROOM(ch) == NOWHERE) {
     log("SYSERR: NOWHERE extracting char %s. (%s, extract_char_final)",
@@ -975,6 +968,14 @@ void extract_char_final(struct char_data *ch)
       extract_script_mem(SCRIPT_MEM(ch));
   } else {
     save_char(ch);
+
+    if(ch->cooldown) {
+      for (cd = ch->cooldown; cd; cd = next_cd) {
+         next_cd = cd->next;
+         cooldown_remove(ch, cd);
+      }
+    }
+
     Crash_delete_crashfile(ch);
   }
 

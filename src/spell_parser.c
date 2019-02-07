@@ -29,8 +29,12 @@ const char *unused_spellname = "!UNUSED!"; /* So we can get &unused_spellname */
 
 /* Local (File Scope) Function Prototypes */
 static void say_spell(struct char_data *ch, int spellnum, struct char_data *tch, struct obj_data *tobj);
-static void spello(int spl, const char *name, int max_mana, int min_mana, int mana_change, int minpos, int targets, int violent, int routines, const char *wearoff);
+static void spello(int spl, const char *name, int max_mana, int min_mana, int mana_change, int cooldown, 
+                   int minpos, int targets, int violent, int routines, const char *wearoff);
 static int mag_manacost(struct char_data *ch, int spellnum);
+
+void add_cooldown_timer(struct char_data *ch, int spellnum);
+int get_cooldown_timer(struct char_data *ch, int spellnum);
 
 /* Local (File Scope) Variables */
 struct syllable {
@@ -493,7 +497,7 @@ ACMD(do_cast)
   struct char_data *tch = NULL;
   struct obj_data *tobj = NULL;
   char *s, *t;
-  int number, mana, spellnum, i, target = 0;
+  int number, mana, spellnum, i, target = 0, cd = 0;
 
   if (IS_NPC(ch))
     return;
@@ -603,6 +607,12 @@ ACMD(do_cast)
     send_to_char(ch, "Cannot find the target of your spell!\r\n");
     return;
   }
+    
+  if((cd=get_cooldown_timer(ch, spellnum)) > 0) {
+      send_to_char(ch, "You must wait %d pulses before using %s\r\n", cd, SINFO.name);
+      return;
+  }
+    
   mana = mag_manacost(ch, spellnum);
   if ((mana > 0) && (GET_MANA(ch) < mana) && (GET_LEVEL(ch) < LVL_IMMORT)) {
     send_to_char(ch, "You haven't the energy to cast that spell!\r\n");
@@ -622,9 +632,10 @@ ACMD(do_cast)
     if (cast_spell(ch, tch, tobj, spellnum)) {
       WAIT_STATE(ch, PULSE_VIOLENCE);
       if (mana > 0)
-	GET_MANA(ch) = MAX(0, MIN(GET_MAX_MANA(ch), GET_MANA(ch) - mana));
+	    GET_MANA(ch) = MAX(0, MIN(GET_MAX_MANA(ch), GET_MANA(ch) - mana));
     }
   }
+  add_cooldown_timer(ch, spellnum);
 }
 
 void spell_level(int spell, int chclass, int level)
@@ -654,8 +665,8 @@ void spell_level(int spell, int chclass, int level)
 
 
 /* Assign the spells on boot up */
-static void spello(int spl, const char *name, int max_mana, int min_mana,
-	int mana_change, int minpos, int targets, int violent, int routines, const char *wearoff)
+static void spello(int spl, const char *name, int max_mana, int min_mana, int mana_change, int cooldown, 
+                   int minpos, int targets, int violent, int routines, const char *wearoff)
 {
   int i;
 
@@ -665,6 +676,7 @@ static void spello(int spl, const char *name, int max_mana, int min_mana,
   spell_info[spl].mana_min = min_mana;
   spell_info[spl].mana_change = mana_change;
   spell_info[spl].min_position = minpos;
+  spell_info[spl].cooldown = cooldown;
   spell_info[spl].targets = targets;
   spell_info[spl].violent = violent;
   spell_info[spl].routines = routines;
@@ -682,15 +694,16 @@ void unused_spell(int spl)
   spell_info[spl].mana_min = 0;
   spell_info[spl].mana_change = 0;
   spell_info[spl].min_position = 0;
+  spell_info[spl].cooldown = 0;
   spell_info[spl].targets = 0;
   spell_info[spl].violent = 0;
   spell_info[spl].routines = 0;
   spell_info[spl].name = unused_spellname;
 }
 
-#define skillo(skill, name) spello(skill, name, 0, 0, 0, 0, 0, 0, 0, NULL);
+#define skillo(skill, cooldown, name) spello(skill, name, 0, 0, 0, cooldown, 0, 0, 0, 0, NULL);
 /* Arguments for spello calls:
- * spellnum, maxmana, minmana, manachng, minpos, targets, violent?, routines.
+ * spellnum, maxmana, minmana, manachng, minpos, cooldown, targets, violent?, routines.
  * spellnum:  Number of the spell.  Usually the symbolic name as defined in
  *  spells.h (such as SPELL_HEAL).
  * spellname: The name of the spell.
@@ -704,6 +717,7 @@ void unused_spell(int spl)
  * minpos  :  Minimum position the caster must be in for the spell to work
  *  (usually fighting or standing). targets :  A "list" of the valid targets
  *  for the spell, joined with bitwise OR ('|').
+ * cooldown: how many rounds until this skill/spell can be used again.
  * violent :  TRUE or FALSE, depending on if this is considered a violent
  *  spell and should not be cast in PEACEFUL rooms or on yourself.  Should be
  *  set on any spell that inflicts damage, is considered aggressive (i.e.
@@ -722,240 +736,241 @@ void mag_assign_spells(void)
     unused_spell(i);
   /* Do not change the loop above. */
 
-  spello(SPELL_ANIMATE_DEAD, "animate dead", 35, 10, 3, POS_STANDING,
+  spello(SPELL_ANIMATE_DEAD, "animate dead", 35, 10, 3, 1, POS_STANDING,
 	TAR_OBJ_ROOM, FALSE, MAG_SUMMONS,
 	NULL);
 
-  spello(SPELL_ARMOR, "armor", 30, 15, 3, POS_FIGHTING,
+  spello(SPELL_ARMOR, "armor", 30, 15, 3, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM, FALSE, MAG_AFFECTS,
 	"You feel less protected.");
 
-  spello(SPELL_BLESS, "bless", 35, 5, 3, POS_STANDING,
+  spello(SPELL_BLESS, "bless", 35, 5, 3, 1, POS_STANDING,
 	TAR_CHAR_ROOM | TAR_OBJ_INV, FALSE, MAG_AFFECTS | MAG_ALTER_OBJS,
 	"You feel less righteous.");
 
-  spello(SPELL_BLINDNESS, "blindness", 35, 25, 1, POS_STANDING,
+  spello(SPELL_BLINDNESS, "blindness", 35, 25, 1, 2, POS_STANDING,
 	TAR_CHAR_ROOM | TAR_NOT_SELF, FALSE, MAG_AFFECTS,
 	"You feel a cloak of blindness dissolve.");
 
-  spello(SPELL_BURNING_HANDS, "burning hands", 30, 10, 3, POS_FIGHTING,
+  spello(SPELL_BURNING_HANDS, "burning hands", 30, 10, 3, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM | TAR_FIGHT_VICT, TRUE, MAG_DAMAGE,
 	NULL);
 
-  spello(SPELL_CALL_LIGHTNING, "call lightning", 40, 25, 3, POS_FIGHTING,
+  spello(SPELL_CALL_LIGHTNING, "call lightning", 40, 25, 3, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM | TAR_FIGHT_VICT, TRUE, MAG_DAMAGE,
 	NULL);
 
-  spello(SPELL_CHARM, "charm person", 75, 50, 2, POS_FIGHTING,
+  spello(SPELL_CHARM, "charm person", 75, 50, 2, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM | TAR_NOT_SELF, TRUE, MAG_MANUAL,
 	"You feel more self-confident.");
 
-  spello(SPELL_CHILL_TOUCH, "chill touch", 30, 10, 3, POS_FIGHTING,
+  spello(SPELL_CHILL_TOUCH, "chill touch", 30, 10, 3, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM | TAR_FIGHT_VICT, TRUE, MAG_DAMAGE | MAG_AFFECTS,
 	"You feel your strength return.");
 
-  spello(SPELL_CLONE, "clone", 80, 65, 5, POS_STANDING,
+  spello(SPELL_CLONE, "clone", 80, 65, 5, 1, POS_STANDING,
 	TAR_IGNORE, FALSE, MAG_SUMMONS,
 	NULL);
 
-  spello(SPELL_COLOR_SPRAY, "color spray", 30, 15, 3, POS_FIGHTING,
+  spello(SPELL_COLOR_SPRAY, "color spray", 30, 15, 3, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM | TAR_FIGHT_VICT, TRUE, MAG_DAMAGE,
 	NULL);
 
-  spello(SPELL_CONTROL_WEATHER, "control weather", 75, 25, 5, POS_STANDING,
+  spello(SPELL_CONTROL_WEATHER, "control weather", 75, 25, 5, 1, POS_STANDING,
 	TAR_IGNORE, FALSE, MAG_MANUAL,
 	NULL);
 
-  spello(SPELL_CREATE_FOOD, "create food", 30, 5, 4, POS_STANDING,
+  spello(SPELL_CREATE_FOOD, "create food", 30, 5, 4, 1, POS_STANDING,
 	TAR_IGNORE, FALSE, MAG_CREATIONS,
 	NULL);
 
-  spello(SPELL_CREATE_WATER, "create water", 30, 5, 4, POS_STANDING,
+  spello(SPELL_CREATE_WATER, "create water", 30, 5, 4, 1, POS_STANDING,
 	TAR_OBJ_INV | TAR_OBJ_EQUIP, FALSE, MAG_MANUAL,
 	NULL);
 
-  spello(SPELL_CURE_BLIND, "cure blind", 30, 5, 2, POS_STANDING,
+  spello(SPELL_CURE_BLIND, "cure blind", 30, 5, 2, 1, POS_STANDING,
 	TAR_CHAR_ROOM, FALSE, MAG_UNAFFECTS,
 	NULL);
 
-  spello(SPELL_CURE_CRITIC, "cure critic", 30, 10, 2, POS_FIGHTING,
+  spello(SPELL_CURE_CRITIC, "cure critic", 30, 10, 2, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM, FALSE, MAG_POINTS,
 	NULL);
 
-  spello(SPELL_CURE_LIGHT, "cure light", 30, 10, 2, POS_FIGHTING,
+  spello(SPELL_CURE_LIGHT, "cure light", 30, 10, 2, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM, FALSE, MAG_POINTS,
 	NULL);
 
-  spello(SPELL_CURSE, "curse", 80, 50, 2, POS_STANDING,
+  spello(SPELL_CURSE, "curse", 80, 50, 2, 1, POS_STANDING,
 	TAR_CHAR_ROOM | TAR_OBJ_INV, TRUE, MAG_AFFECTS | MAG_ALTER_OBJS,
 	"You feel more optimistic.");
 
-  spello(SPELL_DARKNESS, "darkness", 30, 5, 4, POS_STANDING,
+  spello(SPELL_DARKNESS, "darkness", 30, 5, 4, 1, POS_STANDING,
 	TAR_IGNORE, FALSE, MAG_ROOMS,
 	NULL);
 
-  spello(SPELL_DETECT_ALIGN, "detect alignment", 20, 10, 2, POS_STANDING,
+  spello(SPELL_DETECT_ALIGN, "detect alignment", 20, 10, 2, 1, POS_STANDING,
 	TAR_CHAR_ROOM | TAR_SELF_ONLY, FALSE, MAG_AFFECTS,
 	"You feel less aware.");
 
-  spello(SPELL_DETECT_INVIS, "detect invisibility", 20, 10, 2, POS_STANDING,
+  spello(SPELL_DETECT_INVIS, "detect invisibility", 20, 10, 2, 1, POS_STANDING,
 	TAR_CHAR_ROOM | TAR_SELF_ONLY, FALSE, MAG_AFFECTS,
 	"Your eyes stop tingling.");
 
-  spello(SPELL_DETECT_MAGIC, "detect magic", 20, 10, 2, POS_STANDING,
+  spello(SPELL_DETECT_MAGIC, "detect magic", 20, 10, 2, 1, POS_STANDING,
 	TAR_CHAR_ROOM | TAR_SELF_ONLY, FALSE, MAG_AFFECTS,
 	"The detect magic wears off.");
 
-  spello(SPELL_DETECT_POISON, "detect poison", 15, 5, 1, POS_STANDING,
+  spello(SPELL_DETECT_POISON, "detect poison", 15, 5, 1, 1, POS_STANDING,
 	TAR_CHAR_ROOM | TAR_OBJ_INV | TAR_OBJ_ROOM, FALSE, MAG_MANUAL,
 	"The detect poison wears off.");
 
-  spello(SPELL_DISPEL_EVIL, "dispel evil", 40, 25, 3, POS_FIGHTING,
+  spello(SPELL_DISPEL_EVIL, "dispel evil", 40, 25, 3, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM | TAR_FIGHT_VICT, TRUE, MAG_DAMAGE,
 	NULL);
 
-  spello(SPELL_DISPEL_GOOD, "dispel good", 40, 25, 3, POS_FIGHTING,
+  spello(SPELL_DISPEL_GOOD, "dispel good", 40, 25, 3, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM | TAR_FIGHT_VICT, TRUE, MAG_DAMAGE,
 	NULL);
 
-  spello(SPELL_EARTHQUAKE, "earthquake", 40, 25, 3, POS_FIGHTING,
+  spello(SPELL_EARTHQUAKE, "earthquake", 40, 25, 3, 1, POS_FIGHTING,
 	TAR_IGNORE, TRUE, MAG_AREAS,
 	NULL);
 
-  spello(SPELL_ENCHANT_WEAPON, "enchant weapon", 150, 100, 10, POS_STANDING,
+  spello(SPELL_ENCHANT_WEAPON, "enchant weapon", 150, 100, 10, 1, POS_STANDING,
 	TAR_OBJ_INV, FALSE, MAG_MANUAL,
 	NULL);
 
-  spello(SPELL_ENERGY_DRAIN, "energy drain", 40, 25, 1, POS_FIGHTING,
+  spello(SPELL_ENERGY_DRAIN, "energy drain", 40, 25, 1, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM | TAR_FIGHT_VICT, TRUE, MAG_DAMAGE | MAG_MANUAL,
 	NULL);
 
-  spello(SPELL_GROUP_ARMOR, "group armor", 50, 30, 2, POS_STANDING,
+  spello(SPELL_GROUP_ARMOR, "group armor", 50, 30, 2, 3, POS_STANDING,
 	TAR_IGNORE, FALSE, MAG_GROUPS,
 	NULL);
 
-  spello(SPELL_FIREBALL, "fireball", 40, 30, 2, POS_FIGHTING,
+  spello(SPELL_FIREBALL, "fireball", 40, 30, 2, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM | TAR_FIGHT_VICT, TRUE, MAG_DAMAGE,
 	NULL);
 
-  spello(SPELL_FLY, "fly", 40, 20, 2, POS_FIGHTING,
+  spello(SPELL_FLY, "fly", 40, 20, 2, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM, FALSE, MAG_AFFECTS,
 	"You drift slowly to the ground.");
 
-  spello(SPELL_GROUP_HEAL, "group heal", 80, 60, 5, POS_STANDING,
+  spello(SPELL_GROUP_HEAL, "group heal", 80, 60, 5, 4, POS_STANDING,
 	TAR_IGNORE, FALSE, MAG_GROUPS,
 	NULL);
 
-  spello(SPELL_HARM, "harm", 75, 45, 3, POS_FIGHTING,
+  spello(SPELL_HARM, "harm", 75, 45, 3, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM | TAR_FIGHT_VICT, TRUE, MAG_DAMAGE,
 	NULL);
 
-  spello(SPELL_HEAL, "heal", 60, 40, 3, POS_FIGHTING,
+  spello(SPELL_HEAL, "heal", 60, 40, 3, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM, FALSE, MAG_POINTS | MAG_UNAFFECTS,
 	NULL);
 
-  spello(SPELL_INFRAVISION, "infravision", 25, 10, 1, POS_STANDING,
+  spello(SPELL_INFRAVISION, "infravision", 25, 10, 1, 1, POS_STANDING,
 	TAR_CHAR_ROOM | TAR_SELF_ONLY, FALSE, MAG_AFFECTS,
 	"Your night vision seems to fade.");
 
-  spello(SPELL_INVISIBLE, "invisibility", 35, 25, 1, POS_STANDING,
+  spello(SPELL_INVISIBLE, "invisibility", 35, 25, 1, 5, POS_STANDING,
 	TAR_CHAR_ROOM | TAR_OBJ_INV | TAR_OBJ_ROOM, FALSE, MAG_AFFECTS | MAG_ALTER_OBJS,
 	"You feel yourself exposed.");
 
-  spello(SPELL_LIGHTNING_BOLT, "lightning bolt", 30, 15, 1, POS_FIGHTING,
+  spello(SPELL_LIGHTNING_BOLT, "lightning bolt", 30, 15, 1, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM | TAR_FIGHT_VICT, TRUE, MAG_DAMAGE,
 	NULL);
 
-  spello(SPELL_LOCATE_OBJECT, "locate object", 25, 20, 1, POS_STANDING,
+  spello(SPELL_LOCATE_OBJECT, "locate object", 25, 20, 1, 1, POS_STANDING,
 	TAR_OBJ_WORLD, FALSE, MAG_MANUAL,
 	NULL);
 
-  spello(SPELL_MAGIC_MISSILE, "magic missile", 25, 10, 3, POS_FIGHTING,
+  spello(SPELL_MAGIC_MISSILE, "magic missile", 25, 10, 3, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM | TAR_FIGHT_VICT, TRUE, MAG_DAMAGE,
 	NULL);
 
-  spello(SPELL_POISON, "poison", 50, 20, 3, POS_STANDING,
+  spello(SPELL_POISON, "poison", 50, 20, 3, 1, POS_STANDING,
 	TAR_CHAR_ROOM | TAR_NOT_SELF | TAR_OBJ_INV, TRUE,
 	MAG_AFFECTS | MAG_ALTER_OBJS,
 	"You feel less sick.");
 
-  spello(SPELL_PROT_FROM_EVIL, "protection from evil", 40, 10, 3, POS_STANDING,
+  spello(SPELL_PROT_FROM_EVIL, "protection from evil", 40, 10, 3, 1, POS_STANDING,
 	TAR_CHAR_ROOM | TAR_SELF_ONLY, FALSE, MAG_AFFECTS,
 	"You feel less protected.");
 
-  spello(SPELL_REMOVE_CURSE, "remove curse", 45, 25, 5, POS_STANDING,
+  spello(SPELL_REMOVE_CURSE, "remove curse", 45, 25, 5, 1, POS_STANDING,
 	TAR_CHAR_ROOM | TAR_OBJ_INV | TAR_OBJ_EQUIP, FALSE,
 	MAG_UNAFFECTS | MAG_ALTER_OBJS,
 	NULL);
 
-  spello(SPELL_REMOVE_POISON, "remove poison", 40, 8, 4, POS_STANDING,
+  spello(SPELL_REMOVE_POISON, "remove poison", 40, 8, 4, 1, POS_STANDING,
 	TAR_CHAR_ROOM | TAR_OBJ_INV | TAR_OBJ_ROOM, FALSE, MAG_UNAFFECTS | MAG_ALTER_OBJS,
 	NULL);
 
-  spello(SPELL_SANCTUARY, "sanctuary", 110, 85, 5, POS_STANDING,
+  spello(SPELL_SANCTUARY, "sanctuary", 110, 85, 5, 1, POS_STANDING,
 	TAR_CHAR_ROOM, FALSE, MAG_AFFECTS,
 	"The white aura around your body fades.");
 
-  spello(SPELL_SENSE_LIFE, "sense life", 20, 10, 2, POS_STANDING,
+  spello(SPELL_SENSE_LIFE, "sense life", 20, 10, 2, 1, POS_STANDING,
 	TAR_CHAR_ROOM | TAR_SELF_ONLY, FALSE, MAG_AFFECTS,
 	"You feel less aware of your surroundings.");
 
-  spello(SPELL_SHOCKING_GRASP, "shocking grasp", 30, 15, 3, POS_FIGHTING,
+  spello(SPELL_SHOCKING_GRASP, "shocking grasp", 30, 15, 3, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM | TAR_FIGHT_VICT, TRUE, MAG_DAMAGE,
 	NULL);
 
-  spello(SPELL_SLEEP, "sleep", 40, 25, 5, POS_STANDING,
+  spello(SPELL_SLEEP, "sleep", 40, 25, 5, 1, POS_STANDING,
 	TAR_CHAR_ROOM, TRUE, MAG_AFFECTS,
 	"You feel less tired.");
 
-  spello(SPELL_STRENGTH, "strength", 35, 30, 1, POS_STANDING,
+  spello(SPELL_STRENGTH, "strength", 35, 30, 1, 1, POS_STANDING,
 	TAR_CHAR_ROOM, FALSE, MAG_AFFECTS,
 	"You feel weaker.");
 
-  spello(SPELL_SUMMON, "summon", 75, 50, 3, POS_STANDING,
+  spello(SPELL_SUMMON, "summon", 75, 50, 3, 1, POS_STANDING,
 	TAR_CHAR_WORLD | TAR_NOT_SELF, FALSE, MAG_MANUAL,
 	NULL);
 
-  spello(SPELL_TELEPORT, "teleport", 75, 50, 3, POS_STANDING,
+  spello(SPELL_TELEPORT, "teleport", 75, 50, 3, 1, POS_STANDING,
 	TAR_CHAR_ROOM, FALSE, MAG_MANUAL,
 	NULL);
 
-  spello(SPELL_WATERWALK, "waterwalk", 40, 20, 2, POS_STANDING,
+  spello(SPELL_WATERWALK, "waterwalk", 40, 20, 2, 1, POS_STANDING,
 	TAR_CHAR_ROOM, FALSE, MAG_AFFECTS,
 	"Your feet seem less buoyant.");
 
-  spello(SPELL_WORD_OF_RECALL, "word of recall", 20, 10, 2, POS_FIGHTING,
+  spello(SPELL_WORD_OF_RECALL, "word of recall", 20, 10, 2, 1, POS_FIGHTING,
 	TAR_CHAR_ROOM, FALSE, MAG_MANUAL,
 	NULL);
 
-  spello(SPELL_IDENTIFY, "identify", 50, 25, 5, POS_STANDING,
+  spello(SPELL_IDENTIFY, "identify", 50, 25, 5, 1, POS_STANDING,
         TAR_CHAR_ROOM | TAR_OBJ_INV | TAR_OBJ_ROOM, FALSE, MAG_MANUAL,
         NULL);
 
 
   /* NON-castable spells should appear below here. */
-  spello(SPELL_IDENTIFY, "identify", 0, 0, 0, 0,
+  spello(SPELL_IDENTIFY, "identify", 0, 0, 0, 0, 0,
 	TAR_CHAR_ROOM | TAR_OBJ_INV | TAR_OBJ_ROOM, FALSE, MAG_MANUAL,
 	NULL);
 
   /* you might want to name this one something more fitting to your theme -Welcor*/
-  spello(SPELL_DG_AFFECT, "Script-inflicted", 0, 0, 0, POS_SITTING,
+  spello(SPELL_DG_AFFECT, "Script-inflicted", 0, 0, 0, 0, POS_SITTING,
 	TAR_IGNORE, TRUE, 0,
 	NULL);
 
   /* Declaration of skills - this actually doesn't do anything except set it up
    * so that immortals can use these skills by default.  The min level to use
    * the skill for other classes is set up in class.c. */
-  skillo(SKILL_BACKSTAB, "backstab");
-  skillo(SKILL_BASH, "bash");
-  skillo(SKILL_HIDE, "hide");
-  skillo(SKILL_KICK, "kick");
-  skillo(SKILL_PICK_LOCK, "pick lock");
-  skillo(SKILL_RESCUE, "rescue");
-  skillo(SKILL_SNEAK, "sneak");
-  skillo(SKILL_STEAL, "steal");
-  skillo(SKILL_TRACK, "track");
-  skillo(SKILL_WHIRLWIND, "whirlwind");
-  skillo(SKILL_BANDAGE, "bandage");
+  skillo(SKILL_BACKSTAB, 10, "backstab");
+  skillo(SKILL_BASH, 1, "bash");
+  skillo(SKILL_HIDE, 1, "hide");
+  skillo(SKILL_KICK, 3, "kick");
+  skillo(SKILL_PICK_LOCK, 1, "pick lock");
+  skillo(SKILL_RESCUE, 1, "rescue");
+  skillo(SKILL_SNEAK, 2, "sneak");
+  skillo(SKILL_STEAL, 1, "steal");
+  skillo(SKILL_TRACK, 1, "track");
+  skillo(SKILL_WHIRLWIND, 1, "whirlwind");
+  skillo(SKILL_BANDAGE, 1, "bandage");
+  skillo(SKILL_BANDAGE, 1, "bandage");
 }
 

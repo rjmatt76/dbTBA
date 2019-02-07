@@ -186,7 +186,7 @@ struct spell_info_type {
    int mana_min;	/* Min amount of mana used by a spell (highest lev) */
    int mana_max;	/* Max amount of mana used by a spell (lowest lev) */
    int mana_change;	/* Change in mana used by spell from lev to lev */
-
+   int cooldown;
    int min_level[NUM_CLASSES];
    int routines;
    byte violent;

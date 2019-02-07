@@ -816,9 +816,9 @@ static void do_stat_character(struct char_data *ch, struct char_data *k)
     }
     send_to_char(ch, "\r\n");
   }
-  send_to_char(ch, "Str: [%s%d/%d%s]  Int: [%s%d%s]  Wis: [%s%d%s]  "
+  send_to_char(ch, "Str: [%s%d%s]  Int: [%s%d%s]  Wis: [%s%d%s]  "
 	  "Dex: [%s%d%s]  Con: [%s%d%s]  Cha: [%s%d%s]\r\n",
-	  CCCYN(ch, C_NRM), GET_STR(k), GET_ADD(k), CCNRM(ch, C_NRM),
+	  CCCYN(ch, C_NRM), GET_STR(k), CCNRM(ch, C_NRM),
 	  CCCYN(ch, C_NRM), GET_INT(k), CCNRM(ch, C_NRM),
 	  CCCYN(ch, C_NRM), GET_WIS(k), CCNRM(ch, C_NRM),
 	  CCCYN(ch, C_NRM), GET_DEX(k), CCNRM(ch, C_NRM),
@@ -1613,7 +1613,6 @@ ACMD(do_restore)
           SET_SKILL(vict, i, 100);
 
       if (GET_LEVEL(vict) >= LVL_GRGOD) {
-	vict->real_abils.str_add = 100;
 	vict->real_abils.intel = 25;
 	vict->real_abils.wis = 25;
 	vict->real_abils.dex = 25;
@@ -2336,8 +2335,8 @@ ACMD(do_wizutil)
       send_to_char(ch, "Rerolled...\r\n");
       roll_real_abils(vict);
       log("(GC) %s has rerolled %s.", GET_NAME(ch), GET_NAME(vict));
-      send_to_char(ch, "New stats: Str %d/%d, Int %d, Wis %d, Dex %d, Con %d, Cha %d\r\n",
-	      GET_STR(vict), GET_ADD(vict), GET_INT(vict), GET_WIS(vict),
+      send_to_char(ch, "New stats: Str %d, Int %d, Wis %d, Dex %d, Con %d, Cha %d\r\n",
+	      GET_STR(vict), GET_INT(vict), GET_WIS(vict),
 	      GET_DEX(vict), GET_CON(vict), GET_CHA(vict));
       break;
     case SCMD_PARDON:
@@ -3239,14 +3238,9 @@ static int perform_set(struct char_data *ch, struct char_data *vict, int mode, c
       else
         RANGE(3, 18);
       vict->real_abils.str = value;
-      vict->real_abils.str_add = 0;
       affect_total(vict);
       break;
     case 49: /* stradd */
-      vict->real_abils.str_add = RANGE(0, 100);
-      if (value > 0)
-        vict->real_abils.str = 18;
-      affect_total(vict);
       break;
     case 50: /* thief */
       SET_OR_REMOVE(PLR_FLAGS(vict), PLR_THIEF);

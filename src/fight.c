@@ -89,7 +89,7 @@ int compute_armor_class(struct char_data *ch)
   if (AWAKE(ch))
     armorclass += dex_app[GET_DEX(ch)].defensive * 10;
 
-  return (MAX(-100, armorclass));      /* -100 is lowest */
+  return (MAX(0, armorclass));      /* 0 is lowest */
 }
 
 void update_pos(struct char_data *victim)
@@ -655,10 +655,6 @@ int damage(struct char_data *ch, struct char_data *victim, int dam, int attackty
   /* Set the maximum damage per round and subtract the hit points */
   dam = MAX(MIN(dam, 100), 0);
   GET_HIT(victim) -= dam;
-
-  /* Gain exp for the hit */
-  if (ch != victim)
-    gain_exp(ch, GET_LEVEL(victim) * dam);
 
   update_pos(victim);
 

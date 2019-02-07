@@ -746,32 +746,6 @@ struct obj_file_elem
   struct obj_affected_type affected[MAX_OBJ_AFFECT]; /**< Affects to mobs */
 };
 
-/** Header block for rent files.
- * DO NOT CHANGE the structure if you are using binary object files
- * and already have a player base and don't want to do a player wipe.
- * If you are using binary player files, feel free to turn the spare
- * variables into something more meaningful, as long as you keep the
- * int datatype.
- * NOTE: This is *not* used with the ascii playerfiles.
- * NOTE 2: This structure appears to be unused in this codebase? */
-struct rent_info
-{
-  int time;
-  int rentcode;          /**< How this character rented */
-  int net_cost_per_diem; /**< ? Appears to be unused ? */
-  int gold;              /**< ? Appears to be unused ? */
-  int account;           /**< ? Appears to be unused ? */
-  int nitems;            /**< ? Appears to be unused ? */
-  int spare0;
-  int spare1;
-  int spare2;
-  int spare3;
-  int spare4;
-  int spare5;
-  int spare6;
-  int spare7;
-};
-
 /* room-related structures */
 
 /** Direction (north, south, east...) information for rooms. */
@@ -877,7 +851,6 @@ struct char_player_data
 struct char_ability_data
 {
   sbyte str;     /**< Strength.  */
-  sbyte str_add; /**< Strength multiplier if str = 18. Usually from 0 to 100 */
   sbyte intel;   /**< Intelligence */
   sbyte wis;     /**< Wisdom */
   sbyte dex;     /**< Dexterity */
@@ -1002,6 +975,13 @@ struct affected_type
   struct affected_type *next; /**< The next affect in the list of affects. */
 };
 
+struct cooldown_node {
+   int timer;
+   int spellnum;
+
+   struct cooldown_node *next;
+};
+
 /** The list element that makes up a list of characters following this
  * character. */
 struct follow_type
@@ -1050,6 +1030,8 @@ struct char_data
   long pref; /**< unique session id */
   
   struct list_data * events;
+
+  struct cooldown_node *cooldown;
 };
 
 /** descriptor-related structures */

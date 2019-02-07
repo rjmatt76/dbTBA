@@ -1631,11 +1631,6 @@ static void interpret_espec(const char *keyword, const char *value, int i, int n
     mob_proto[i].real_abils.str = num_arg;
   }
 
-  CASE("StrAdd") {
-    RANGE(0, 100);
-    mob_proto[i].real_abils.str_add = num_arg;
-  }
-
   CASE("Int") {
     RANGE(3, 25);
     mob_proto[i].real_abils.intel = num_arg;
@@ -3551,7 +3546,6 @@ void init_char(struct char_data *ch)
   ch->real_abils.wis = 25;
   ch->real_abils.dex = 25;
   ch->real_abils.str = 25;
-  ch->real_abils.str_add = 100;
   ch->real_abils.con = 25;
   ch->real_abils.cha = 25;
 

@@ -164,7 +164,6 @@ int create_entry(char *name)
     CREATE(player_table, struct player_index_element, 1);
   } else if ((pos = get_ptable_by_name(name)) == -1) {	/* new name */
     i = ++top_of_p_table + 1;
-
     RECREATE(player_table, struct player_index_element, i);
     pos = top_of_p_table;
   }
@@ -268,7 +267,7 @@ char *get_name_by_id(long id)
 cpp_extern struct mysql_column_bind_adapter playerfile_table[] = 
 {
   { "Ac",             MYSQL_TYPE_LONG    }, 
-  { "Act_0",          MYSQL_TYPE_LONG }, // bitvector
+  { "Act_0",          MYSQL_TYPE_LONG    }, // bitvector
   { "Act_1",          MYSQL_TYPE_LONG    }, // bitvector
   { "Act_2",          MYSQL_TYPE_LONG    }, // bitvector
   { "Act_3",          MYSQL_TYPE_LONG    }, // bitvector
@@ -306,10 +305,10 @@ cpp_extern struct mysql_column_bind_adapter playerfile_table[] =
   { "Lmot",           MYSQL_TYPE_LONG    },
   { "Lnew",           MYSQL_TYPE_LONG    },
   { "Mana",           MYSQL_TYPE_LONG    },
-  { "MaxHit",           MYSQL_TYPE_LONG }, 
-  { "MaxMana",           MYSQL_TYPE_LONG },
+  { "MaxHit",         MYSQL_TYPE_LONG }, 
+  { "MaxMana",        MYSQL_TYPE_LONG },
   { "Move",           MYSQL_TYPE_LONG    },
-  { "MaxMove",           MYSQL_TYPE_LONG },
+  { "MaxMove",        MYSQL_TYPE_LONG },
   { "Name",           MYSQL_TYPE_VAR_STRING  },
   { "Olc",            MYSQL_TYPE_LONG    },
   { "Page",           MYSQL_TYPE_LONG    },
@@ -357,7 +356,6 @@ void load_playerfile_from_mysql(struct mysql_bind_column *fields, int num_fields
   {
     log("MYSQLINFO: field_name_meta: %s %d %s", fields[i].name, fields[i].col_int_buffer, fields[i].col_string_buffer == NULL ? "<NULL>": fields[i].col_string_buffer);
     if (!strcmp(fields[i].name, "Ac"))   GET_AC(ch) = (fields[i].col_int_buffer);
-    //else if (!strcmp(fields[i].name, "Act_0"))   PLR_FLAGS(ch)[0] =  asciiflag_conv(fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Act_0"))   PLR_FLAGS(ch)[0] = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Act_1"))   PLR_FLAGS(ch)[1] = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Act_2"))   PLR_FLAGS(ch)[2] = (fields[i].col_int_buffer);
@@ -500,7 +498,6 @@ void update_playerfile_to_mysql_by_ID(MYSQL *conn, int ID, struct char_data *ch,
       parameters[i].int_data = (AFF_FLAGS(ch)[2]);
     else if (!strcmp(playerfile_table[i].column_name, "Aff_3")) 
       parameters[i].int_data = (AFF_FLAGS(ch)[3]);
-    /* incorrect for af flags , fix later */
     else if (!strcmp(playerfile_table[i].column_name, "Affs"))   
     {
       parameter_buf[0] = '\0';
@@ -934,7 +931,6 @@ int load_char(const char *name, struct char_data *ch)
     GET_DAMROLL(ch) = PFDEF_DAMROLL;
     GET_AC(ch) = PFDEF_AC;
     ch->real_abils.str = PFDEF_STR;
-    ch->real_abils.str_add = PFDEF_STRADD;
     ch->real_abils.dex = PFDEF_DEX;
     ch->real_abils.intel = PFDEF_INT;
     ch->real_abils.wis = PFDEF_WIS;
@@ -1403,8 +1399,7 @@ void save_char(struct char_data * ch)
 //  if (GET_MANA(ch)	   != PFDEF_MANA || GET_MAX_MANA(ch) != PFDEF_MAXMANA) fprintf(fl, "Mana: %d/%d\n", GET_MANA(ch), GET_MAX_MANA(ch));
 //  if (GET_MOVE(ch)	   != PFDEF_MOVE || GET_MAX_MOVE(ch) != PFDEF_MAXMOVE) fprintf(fl, "Move: %d/%d\n", GET_MOVE(ch), GET_MAX_MOVE(ch));
 //
-//  if (GET_STR(ch)	   != PFDEF_STR  || GET_ADD(ch)      != PFDEF_STRADD)  fprintf(fl, "Str : %d/%d\n", GET_STR(ch),  GET_ADD(ch));
-//
+
 //  if (GET_GOLD(ch)	   != PFDEF_GOLD)	fprintf(fl, "Gold: %d\n", GET_GOLD(ch));
 //  if (GET_BANK_GOLD(ch)	   != PFDEF_BANK)	fprintf(fl, "Bank: %d\n", GET_BANK_GOLD(ch));
 //  if (GET_HITROLL(ch)	   != PFDEF_HITROLL)	fprintf(fl, "Hrol: %d\n", GET_HITROLL(ch));

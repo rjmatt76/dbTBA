@@ -33,33 +33,6 @@ static int count_pages(char *str, struct char_data *ch);
 static void playing_string_cleanup(struct descriptor_data *d, int action);
 static void exdesc_string_cleanup(struct descriptor_data *d, int action);
 
-/* Local (file scope) global variables */
-/* @deprecated string_fields appears to be no longer be used.
- * Left in but commented out.
-static const char *string_fields[] =
-{
-  "name",
-  "short",
-  "long",
-  "description",
-  "title",
-  "delete-description",
-  "\n"
-};
-*/
-
-/** maximum length for text field x+1
- *  @deprecated length appears to no longer be used. Left in but commented out.
-static int length[] =
-{
-  15,
-  60,
-  256,
-  240,
-  60
-};
-*/
-
 /* modification of malloc'ed strings */
 /* Put '#if 1' here to erase ~, or roll your own method.  A common idea is
  * smash/show tilde to convert the tilde to another innocuous character to

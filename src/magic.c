@@ -491,9 +491,6 @@ void mag_affects(int level, struct char_data *ch, struct char_data *victim,
     break;
 
   case SPELL_STRENGTH:
-    if (GET_ADD(victim) == 100)
-      return;
-
     af[0].location = APPLY_STR;
     af[0].duration = (GET_LEVEL(ch) / 2) + 4;
     af[0].modifier = 1 + (level > 18);

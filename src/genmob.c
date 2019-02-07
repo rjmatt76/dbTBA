@@ -331,8 +331,6 @@ int write_mobile_espec(mob_vnum mvnum, struct char_data *mob, FILE *fd)
     fprintf(fd, "BareHandAttack: %d\n", GET_ATTACK(mob));
   if (GET_STR(mob) != 11)
     fprintf(fd, "Str: %d\n", GET_STR(mob));
-  if (GET_ADD(mob) != 0)
-    fprintf(fd, "StrAdd: %d\n", GET_ADD(mob));
   if (GET_DEX(mob) != 11)
     fprintf(fd, "Dex: %d\n", GET_DEX(mob));
   if (GET_INT(mob) != 11)

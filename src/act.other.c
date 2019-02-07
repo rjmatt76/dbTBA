@@ -34,6 +34,7 @@
 /* do_group utility functions */
 static void print_group(struct char_data *ch);
 static void display_group_list(struct char_data * ch);
+int get_cooldown_timer(struct char_data *ch, int spellnum);
 
 ACMD(do_quit)
 {
@@ -970,3 +971,88 @@ ACMD(do_happyhour)
                      (3600 / SECS_PER_MUD_HOUR) );
   }
 }
+
+/* remove a cooldown from a character's innate linked list */
+void cooldown_remove(struct char_data * ch, struct cooldown_node * cd)
+{
+  struct cooldown_node *temp;
+
+  if (ch->cooldown == NULL) {
+    core_dump();
+    return;
+  }
+
+  REMOVE_FROM_LIST(cd, ch->cooldown, next);
+  free(cd);
+}
+
+void cooldown_add(struct char_data * ch, int spellnum, int timer)
+{
+  struct cooldown_node * cd;
+
+  CREATE(cd, struct cooldown_node, 1);
+  cd->timer = timer;
+  cd->spellnum = spellnum;
+  cd->next = ch->cooldown;
+  ch->cooldown = cd;
+}
+
+/* Adds a node to the linked list with a timer which indicates
+   that the innate skill/spell is NOT ready to be used.
+
+   is_innate_ready(...) should be called first to determine if
+   there is already a timer set for the spellnum.
+*/
+void add_cooldown_timer(struct char_data *ch, int spellnum)
+{
+  int timer = 3; /* number of ticks */
+
+  timer = spell_info[spellnum].cooldown;
+
+  if(get_cooldown_timer(ch, spellnum) < 1) {
+    cooldown_add(ch, spellnum, timer);
+  } else {
+    send_to_char(ch, "BUG!\r\n");
+  }
+}
+
+/* returns timer if the spell is found in the cooldown linked list,
+   otherwise returns 0
+*/
+int get_cooldown_timer(struct char_data *ch, int spellnum)
+{
+  struct cooldown_node *cd, *next_cd;
+
+  for(cd = ch->cooldown; cd; cd = next_cd) {
+    next_cd = cd->next;
+    if(cd->spellnum == spellnum)
+      return cd->timer;
+  }
+  return 0;
+}
+
+void update_cooldown(struct char_data *ch)
+{
+  struct cooldown_node *cd, *next_cd;
+
+  for (cd = ch->cooldown; cd; cd = next_cd) {
+    next_cd = cd->next;
+    if (cd->timer > 1) {
+      cd->timer--;
+    } else {
+      send_to_char(ch, "You are now able to use %s again.\r\n", spell_info[cd->spellnum].name);
+      cooldown_remove(ch, cd);
+    }
+  }
+}
+
+void update_cooldowns()
+{
+  struct char_data *i;
+  for (i = character_list; i; i = i->next)
+  {
+    if(!IS_NPC(i))
+      update_cooldown(i);
+  }
+}
+

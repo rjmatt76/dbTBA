@@ -27,7 +27,6 @@
 static int graf(int grafage, int p0, int p1, int p2, int p3, int p4, int p5, int p6);
 static void check_idling(struct char_data *ch);
 
-
 /* When age < 15 return the value p0
    When age is 15..29 calculate the line between p1 & p2
    When age is 30..44 calculate the line between p2 & p3

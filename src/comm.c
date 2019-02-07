@@ -178,6 +178,8 @@ static void msdp_update(void); /* KaVir plugin*/
 #define FD_CLR(x, y)
 #endif
 
+void update_cooldowns();
+
 /*  main game loop and related stuff */
 
 #if defined(CIRCLE_WINDOWS) || defined(CIRCLE_MACINTOSH)
@@ -1003,7 +1005,10 @@ void heartbeat(int heart_pulse)
     mobile_activity();
 
   if (!(heart_pulse % PULSE_VIOLENCE))
+  {
     perform_violence();
+    update_cooldowns();
+  }
 
   if (!(heart_pulse % (SECS_PER_MUD_HOUR * PASSES_PER_SEC))) {  /* Tick ! */
     next_tick = SECS_PER_MUD_HOUR;  /* Reset tick coundown */

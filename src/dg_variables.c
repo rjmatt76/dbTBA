@@ -1065,18 +1065,6 @@ void find_replacement(void *go, struct script_data *sc, trig_data *trig,
             }
             snprintf(str, slen, "%d", GET_STR(c));
           }
-          else if (!str_cmp(field, "stradd")) {
-            if (GET_STR(c) >= 18) {
-              if (subfield && *subfield) {
-                int addition = atoi(subfield);
-                c->real_abils.str_add += addition;
-                if (c->real_abils.str_add > 100) c->real_abils.str_add = 100;
-                if (c->real_abils.str_add < 0) c->real_abils.str_add = 0;
-                affect_total(c);
-              }
-              snprintf(str, slen, "%d", GET_ADD(c));
-            }
-          }
           break;
         case 't':
           if (!str_cmp(field, "thirst")) {
