@@ -4,7 +4,8 @@ void get_mysql_database_conn();
 
 #define MYSQL_HOST "localhost"
 #define MYSQL_USER "strifemud"
-#define MYSQL_PASS "x3L5$pqZw_"
+/* change this later */
+#define MYSQL_PASS "MYSQLPASSWORD"
 #define MYSQL_DB "strife_mud"
 #define MYSQL_PLAYER_TABLE "playerfile"
 
