@@ -22,6 +22,7 @@
 #include "config.h"
 #include "modify.h"
 #include "genolc.h" /* for strip_cr and sprintascii */
+#include "players.h"
 
 /* these factors should be unique integers */
 #define RENT_FACTOR    1
@@ -49,6 +50,21 @@ static void Crash_cryosave(struct char_data *ch, int cost);
 static int Crash_load_objs(struct char_data *ch);
 static int handle_obj(struct obj_data *obj, struct char_data *ch, int locate, struct obj_data **cont_rows);
 static int objsave_write_rentcode(FILE *fl, int rentcode, int cost_per_day, struct char_data *ch);
+
+cpp_extern struct mysql_column_bind_adapter player_objects_table_index[] =
+{
+  { "PlayerId",       MYSQL_TYPE_LONG           },
+  { "Vnum",           MYSQL_TYPE_LONG           },
+  { "Loc",            MYSQL_TYPE_LONG           },
+  { "Name",           MYSQL_TYPE_VAR_STRING     },
+  { "Shrt",           MYSQL_TYPE_VAR_STRING     },
+  { "\n",             MYSQL_TYPE_LONG           }
+};
+
+int objsave_save_obj_record_to_mysql(struct obj_data *obj, int locate)
+{
+	//TODO
+}
 
 /* Writes one object record to FILE.  Old name: Obj_to_store() */
 int objsave_save_obj_record(struct obj_data *obj, FILE *fp, int locate)

@@ -53,8 +53,17 @@ void get_mysql_database_conn();
   `Pver` varchar(100) DEFAULT NULL, \
   `Affs` varchar(100) DEFAULT NULL, \
   `Clas` int(11) DEFAULT NULL, \
+  `Deleted` int(11) DEFAULT -1, \
   PRIMARY KEY (`ID`), \
   UNIQUE KEY `idx_playerfile_Name` (`Name`) ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
+
+#define CREATE_PLAYER_OBJECTS_TABLE "CREATE TABLE IF NOT EXISTS `strife_mud`.`player_objects` ( \
+  `PlayerId` int(11) NOT NULL, \
+  `Vnum` int(11) NOT NULL, \
+  `Loc` int(11) DEFAULT NULL, \
+  `Name` varchar(100) DEFAULT NULL, \
+  `Shrt`  varchar(100) DEFAULT NULL \
+  ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
 
 #define MYSQL_QUERY_INSERT 0
 #define MYSQL_QUERY_SELECT 1

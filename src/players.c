@@ -68,6 +68,12 @@ void get_mysql_database_conn()
   {
     log("MYSQLINFO: CREATE TABLE failed, %s\n", mysql_error(database_conn));
   }
+
+  if (mysql_query(database_conn, CREATE_PLAYER_OBJECTS_TABLE))
+  {
+    log("MYSQLINFO: CREATE TABLE failed, %s\n", mysql_error(database_conn));
+  }
+
 }
 
 cpp_extern struct mysql_column_bind_adapter playerfile_table_index[] =
@@ -76,15 +82,15 @@ cpp_extern struct mysql_column_bind_adapter playerfile_table_index[] =
   { "Act_0",          MYSQL_TYPE_LONG           },
   { "Name",           MYSQL_TYPE_VAR_STRING     },
   { "Levl",           MYSQL_TYPE_LONG           },
-  { "Last",           MYSQL_TYPE_LONG           },    
+  { "Last",           MYSQL_TYPE_LONG           },
   { "\n",             MYSQL_TYPE_LONG           }
 };
 
 void load_playerfile_index_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, struct char_data *ch, MYSQL_STMT *stmt)
-{    
+{
   int i, row;
   row = 0;
-    
+
   CREATE(player_table, struct player_index_element, num_rows);
 
   while (!mysql_stmt_fetch(stmt))
@@ -102,11 +108,11 @@ void load_playerfile_index_from_mysql(struct mysql_bind_column *fields, int num_
       else if (!strcmp(fields[i].name, "Last"))  player_table[row].last = fields[i].col_int_buffer;
       else if (!strcmp(fields[i].name, "Act_0"))  player_table[row].flags = fields[i].col_int_buffer;
     }
-    
+
     top_idnum = MAX(top_idnum, player_table[row].id);
     row++;
   }
-  top_of_p_file = top_of_p_table = row - 1;    
+  top_of_p_file = top_of_p_table = row - 1;
 }
 
 /* select a list of all players (on or offline) for the player index */
@@ -117,9 +123,9 @@ int select_player_index_from_mysql(MYSQL *conn)
   char buf[MAX_STRING_LENGTH];
   struct mysql_column_bind_adapter *pft;
   struct mysql_parameter_bind_adapter *parameters;
-    
+
   pft = &playerfile_table_index;
-    
+
   snprintf(buf, sizeof(buf)-1, "SELECT ");
   i = 0;
   while(*pft[i].column_name != '\n')
@@ -129,13 +135,13 @@ int select_player_index_from_mysql(MYSQL *conn)
       strncat(buf, ", ", sizeof(buf)-1);          
     i++;
   }
-    
+
   snprintf(sql_buf, sizeof(sql_buf) - 1, "%s FROM %s.%s WHERE ID <> ?", buf,  MYSQL_DB, MYSQL_PLAYER_TABLE);
   log(sql_buf);
-    
+
   num_parameters = 1;
-  num_columns = i;    
-    
+  num_columns = i;
+
   //create a parameter list (which is just the character's name here)
   CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
   parameters[0].int_data = 0;
@@ -143,7 +149,7 @@ int select_player_index_from_mysql(MYSQL *conn)
   parameters[0].data_length = 0;
 
   query_stmt_mysql(conn, parameters, pft, sql_buf, num_columns, num_parameters, load_playerfile_index_from_mysql, NULL, MYSQL_QUERY_SELECT);
-    
+
   return 1;
 }
 
@@ -382,20 +388,14 @@ void load_playerfile_from_mysql(struct mysql_bind_column *fields, int num_fields
     else if (!strcmp(fields[i].name, "Hit"))   GET_HIT(ch) = (fields[i].col_int_buffer);      
     else if (!strcmp(fields[i].name, "Hite"))   GET_HEIGHT(ch) = (fields[i].col_int_buffer);      
     else if (!strcmp(fields[i].name, "Host"))   GET_HOST(ch) = strdup(fields[i].col_string_buffer);
-
-//  { "Hrol",           MYSQL_TYPE_LONG    },
-//  { "Hung",           MYSQL_TYPE_LONG    },
-
+    else if (!strcmp(fields[i].name, "Hrol"))   GET_HITROLL(ch) = (fields[i].col_int_buffer);
+    else if (!strcmp(fields[i].name, "Hung"))   GET_COND(ch, HUNGER) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "ID"))   GET_IDNUM(ch) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Intel"))   ch->real_abils.intel = (fields[i].col_int_buffer);
-      
-//  { "Invs",           MYSQL_TYPE_LONG    },
-
+    else if (!strcmp(fields[i].name, "Invs"))   GET_INVIS_LEV(ch) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Last"))   ch->player.time.logon = (fields[i].col_int_buffer);
-//  { "Lern",           MYSQL_TYPE_LONG    },
-
+    else if (!strcmp(fields[i].name, "Lern"))   GET_PRACTICES(ch) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Levl"))   GET_LEVEL(ch) = (fields[i].col_int_buffer);
-    
     else if (!strcmp(fields[i].name, "Lmot"))   GET_LAST_MOTD(ch) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Lnew"))   GET_LAST_NEWS(ch) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "MaxHit")) GET_MAX_HIT(ch) = (fields[i].col_int_buffer);
@@ -404,12 +404,11 @@ void load_playerfile_from_mysql(struct mysql_bind_column *fields, int num_fields
     else if (!strcmp(fields[i].name, "Mana"))   GET_MANA(ch) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Move"))   GET_MOVE(ch) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Name")) GET_PC_NAME(ch)	= strdup(fields[i].col_string_buffer);
-//  { "Olc",            MYSQL_TYPE_LONG    },
-//  { "Page",           MYSQL_TYPE_LONG    },
-
+    else if (!strcmp(fields[i].name, "Olc"))   GET_OLC_ZONE(ch) = (fields[i].col_int_buffer);
+    else if (!strcmp(fields[i].name, "Page"))   GET_PAGE_LENGTH(ch) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Pass")) strcpy(GET_PASSWD(ch), fields[i].col_string_buffer);
-      
-//  { "Plyd",           MYSQL_TYPE_LONG    },
+    else if (!strcmp(fields[i].name, "Plyd"))   ch->player.time.played = (fields[i].col_int_buffer);
+
 //  { "PfIn",           MYSQL_TYPE_VAR_STRING  },
 //  { "PfOt",           MYSQL_TYPE_VAR_STRING  },
     else if (!strcmp(fields[i].name, "Pref_0"))   PRF_FLAGS(ch)[0] = (fields[i].col_int_buffer);
@@ -422,23 +421,18 @@ void load_playerfile_from_mysql(struct mysql_bind_column *fields, int num_fields
 //  { "Qcnt",           MYSQL_TYPE_LONG    },
     else if (!strcmp(fields[i].name, "Room"))   GET_LOADROOM(ch) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Sex"))   GET_SEX(ch) = (fields[i].col_int_buffer);
-
-//  { "ScrW",           MYSQL_TYPE_LONG    },
-      
+    else if (!strcmp(fields[i].name, "ScrW"))   GET_SCREEN_WIDTH(ch) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Str"))   ch->real_abils.str = (fields[i].col_int_buffer);
-      
-//  { "Thir",           MYSQL_TYPE_LONG     },
-//  { "Thr1",           MYSQL_TYPE_LONG     },
-//  { "Thr2",           MYSQL_TYPE_LONG     },
-//  { "Thr3",           MYSQL_TYPE_LONG     },
-//  { "Thr4",           MYSQL_TYPE_LONG     },
-//  { "Thr5",           MYSQL_TYPE_LONG     },
-    else if(!strcmp(fields[i].name, "Titl")) GET_TITLE(ch) = strdup(fields[i].col_string_buffer == NULL ? "<NULL>": fields[i].col_string_buffer);
-//  { "Wate",           MYSQL_TYPE_LONG     },
-//  { "Wimp",           MYSQL_TYPE_LONG     },
-      
+    else if (!strcmp(fields[i].name, "Thir"))   GET_COND(ch, THIRST) = (fields[i].col_int_buffer);
+    else if (!strcmp(fields[i].name, "Thr1"))   GET_SAVE(ch, 0) = (fields[i].col_int_buffer);
+    else if (!strcmp(fields[i].name, "Thr2"))   GET_SAVE(ch, 1) = (fields[i].col_int_buffer);
+    else if (!strcmp(fields[i].name, "Thr3"))   GET_SAVE(ch, 2) = (fields[i].col_int_buffer);
+    else if (!strcmp(fields[i].name, "Thr4"))   GET_SAVE(ch, 3) = (fields[i].col_int_buffer);
+    else if (!strcmp(fields[i].name, "Thr5"))   GET_SAVE(ch, 4) = (fields[i].col_int_buffer);
+    else if (!strcmp(fields[i].name, "Titl")) GET_TITLE(ch) = strdup(fields[i].col_string_buffer == NULL ? "<NULL>": fields[i].col_string_buffer);
+    else if (!strcmp(fields[i].name, "Wate"))   GET_WEIGHT(ch) = (fields[i].col_int_buffer);
+    else if (!strcmp(fields[i].name, "Wimp"))   GET_WIMP_LEV(ch) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Wis"))   ch->real_abils.wis = (fields[i].col_int_buffer);
-      
   }
 }
 
