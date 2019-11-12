@@ -23,6 +23,7 @@
 #include "modify.h"
 #include "genolc.h" /* for strip_cr and sprintascii */
 #include "players.h"
+#include "mysql_db.h"
 
 /* these factors should be unique integers */
 #define RENT_FACTOR    1

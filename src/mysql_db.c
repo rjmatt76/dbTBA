@@ -12,6 +12,53 @@
 #include "interpreter.h"
 #include "mysql_db.h"
 
+
+void free_mysql_bind_adapter_parameters(struct mysql_parameter_bind_adapter *p, int num_parameters)
+{
+  int i;
+
+  for(i = 0; i < num_parameters; i++)
+  {
+//    if(p[i].string_data)
+//      free(p[i].string_data);
+  }
+  free(p);
+}
+
+/*  for assigning column definitions to a parameter list in an insert or update statement */
+//void assign_mysql_bind_adapter_bind_parameters(struct mysql_parameters_bind_adapter *p, 
+//  struct mysql_column_bind_adapter *col, int num_parameters)
+//{
+//  int i;
+//  CREATE(p, struct mysql_parameter_bind_adapter, num_parameters);
+
+//  i = 0;
+//  while(*col[i].column_name != '\n')
+//  {
+//    p[i].data_type = *col[i].data_type;
+//  }
+//}
+
+//call free on the return value to release memory
+char* value_mysql_parameter_string(int num_columns, int num_rows)
+{
+  char buf[MAX_STRING_LENGTH];
+  int i, j;
+
+  for(i = 0; i < num_columns; i++)
+  {
+    strncat(buf, "(", sizeof(buf)-1);
+    for(j = 0; j < num_rows; j++)
+    {
+      snprintf(buf, sizeof(buf)-1,  "%s%s", buf, (j < num_rows-1) ? "," : "");
+//      if(j < num_rows-1)
+//        strncat(buf, "?,", sizeof(buf)-1);
+    }
+    snprintf(buf, sizeof(buf-1), "%s)%s", buf, (i < num_columns-1) ? "," : "");
+  }
+  return strdup(buf);
+}
+
 /* should close the mysql connection and log an error */
 void close_mysqlcon_with_error(MYSQL *conn)
 {
@@ -81,11 +128,12 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
     {
       param_bind[i].buffer_type = MYSQL_TYPE_VAR_STRING;
       param_bind[i].buffer=(char *) parameters[i].string_data;
-      param_bind[i].buffer_length = 4097;
+//      param_bind[i].buffer_length = 4097;
+      param_bind[i].buffer_length = strlen(parameters[i].string_data)+1;
       param_bind[i].is_null = 0;
       param_bind[i].length= &parameters[i].data_length;
     }
-    else 
+    else
     {
       param_bind[i].buffer_type = MYSQL_TYPE_LONG;
       param_bind[i].buffer=(int *) &parameters[i].int_data;
@@ -94,7 +142,7 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
   }
   status = mysql_stmt_bind_param(stmt, param_bind);
   test_stmt_error(stmt, status);
-    
+
   /* set the param_bind[i].length to the length of the column name (via the address of parameters[i].data_length)
      mysql wants this set after binding parameters
   */
@@ -104,6 +152,7 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
     {
       parameters[i].data_length = strlen(parameters[i].string_data);
       log("Parameter string %ld %s", parameters[i].data_type, parameters[i].string_data); 
+      log("XXXXX %d XXXXX", (strlen(parameters[i].string_data)+1));
     }
     else
     {

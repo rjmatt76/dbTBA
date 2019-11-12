@@ -1,12 +1,6 @@
-#include <mysql.h>
+#ifndef _PLAYERS_H_
+#define _PLAYERS_H_
 
-void get_mysql_database_conn();
-
-#define MYSQL_HOST "localhost"
-#define MYSQL_USER "strifemud"
-/* change this later */
-#define MYSQL_PASS "MYSQLPASSWORD"
-#define MYSQL_DB "strife_mud"
 #define MYSQL_PLAYER_TABLE "playerfile"
 
 /* use mysql database instead of ascii pfiles */
@@ -57,6 +51,13 @@ void get_mysql_database_conn();
   PRIMARY KEY (`ID`), \
   UNIQUE KEY `idx_playerfile_Name` (`Name`) ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
 
+#define CREATE_ALIAS_TABLE "CREATE TABLE IF NOT EXISTS `strife_mud`.`player_alias` ( \
+  `PlayerID` int(11) NOT NULL, \
+  `Alias` varchar(100) NOT NULL, \
+  `Replacement` varchar(100) DEFAULT NULL, \
+  `Type` varchar(100) DEFAULT NULL \
+  ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
+
 #define CREATE_PLAYER_OBJECTS_TABLE "CREATE TABLE IF NOT EXISTS `strife_mud`.`player_objects` ( \
   `PlayerId` int(11) NOT NULL, \
   `Vnum` int(11) NOT NULL, \
@@ -65,28 +66,4 @@ void get_mysql_database_conn();
   `Shrt`  varchar(100) DEFAULT NULL \
   ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
 
-#define MYSQL_QUERY_INSERT 0
-#define MYSQL_QUERY_SELECT 1
-#define MYSQL_QUERY_UPDATE 2
-#define MYSQL_QUERY_DELETE 3
-
-struct mysql_column_bind_adapter {
-  const char *column_name;
-  long data_type;
-};
-
-struct mysql_parameter_bind_adapter {
-  char * string_data;
-  int int_data;
-  long data_type;
-  int data_length;
-};
-
-struct mysql_bind_column {
-  char name[MAX_INPUT_LENGTH];
-  char col_string_buffer[MAX_INPUT_LENGTH];
-  int col_int_buffer;
-  my_bool is_null;
-  unsigned long col_length;
-  unsigned long buffer_length;
-};
+#endif /* _PLAYERS_H_ */

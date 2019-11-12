@@ -14,6 +14,9 @@ void get_mysql_database_conn();
 #define MYSQL_QUERY_SELECT 1
 #define MYSQL_QUERY_UPDATE 2
 #define MYSQL_QUERY_DELETE 3
+#define MYSQL_QUERY_INSERT 4
+
+#define MYSQL_ALIAS_TABLE "player_alias"
 
 struct mysql_column_bind_adapter {
   const char *column_name;
@@ -42,6 +45,8 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
   void *ch, int querytype);
 static int test_error(MYSQL *mysql, int status);
 static int test_stmt_error(MYSQL_STMT *stmt, int status);
+void free_mysql_bind_adapter_parameters(struct mysql_parameter_bind_adapter *p, int num_parameters);
+
 
 /* global database connection - might end up removing this global connection
    originally had the idea that one connection could be used instead of repeated connections,
