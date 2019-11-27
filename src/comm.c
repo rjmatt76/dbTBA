@@ -347,6 +347,8 @@ int main(int argc, char **argv)
   }
   log("Using %s as data directory.", dir);
 
+  load_db_config();
+
   if (scheck)
     boot_world();
   else {

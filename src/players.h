@@ -7,7 +7,7 @@
 #define USING_MYSQL_DATABASE_FOR_PLAYERFILE 1
 
 /* need to change types/sizes later */
-#define CREATE_PLAYERFILE_TABLE "CREATE TABLE IF NOT EXISTS `strife_mud`.`playerfile` ( \
+#define CREATE_PLAYERFILE_TABLE "CREATE TABLE IF NOT EXISTS `%s`.`%s` ( \
   `ID` int(11) NOT NULL, \
   `Name` varchar(100) NOT NULL, \
   `Pass` varchar(100) DEFAULT NULL, \
@@ -51,19 +51,31 @@
   PRIMARY KEY (`ID`), \
   UNIQUE KEY `idx_playerfile_Name` (`Name`) ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
 
-#define CREATE_ALIAS_TABLE "CREATE TABLE IF NOT EXISTS `strife_mud`.`player_alias` ( \
+#define CREATE_ALIAS_TABLE "CREATE TABLE IF NOT EXISTS `%s`.`%s` ( \
   `PlayerID` int(11) NOT NULL, \
   `Alias` varchar(100) NOT NULL, \
   `Replacement` varchar(100) DEFAULT NULL, \
   `Type` varchar(100) DEFAULT NULL \
   ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
 
-#define CREATE_PLAYER_OBJECTS_TABLE "CREATE TABLE IF NOT EXISTS `strife_mud`.`player_objects` ( \
+#define CREATE_PLAYER_OBJECTS_TABLE "CREATE TABLE IF NOT EXISTS `%s`.`%s` ( \
   `PlayerId` int(11) NOT NULL, \
   `Vnum` int(11) NOT NULL, \
   `Loc` int(11) DEFAULT NULL, \
   `Name` varchar(100) DEFAULT NULL, \
   `Shrt`  varchar(100) DEFAULT NULL \
+  ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
+
+#define CREATE_ROOMS_TABLE "CREATE TABLE IF NOT EXISTS `%s`.`%s` ( \
+  `Vnum` int(11) NOT NULL, \
+  `Zone` int(11) DEFAULT NULL, \
+  `Name` varchar(100) DEFAULT NULL, \
+  `Description`  varchar(2048) DEFAULT NULL, \
+  `SectorType` int(11) NOT NULL, \
+  `RoomFlags_0` int(11) NOT NULL, \
+  `RoomFlags_1` int(11) NOT NULL, \
+  `RoomFlags_2` int(11) NOT NULL, \
+  `RoomFlags_3` int(11) NOT NULL \
   ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
 
 #endif /* _PLAYERS_H_ */

@@ -137,6 +137,7 @@
 #define HCONTROL_FILE	LIB_ETC"hcontrol"  /* for the house system	*/
 #define TIME_FILE	LIB_ETC"time"	   /* for calendar system	*/
 #define CHANGE_LOG_FILE "../changelog"     /* for the changelog         */
+#define DB_CONFIG_FILE  LIB_ETC"dbconfig"  /* for mysql connection info */
 
 /* new bitvector data for use in player_index_element */
 #define PINDEX_DELETED		(1 << 0)	/* deleted player	*/

@@ -67,6 +67,108 @@ int objsave_save_obj_record_to_mysql(struct obj_data *obj, int locate)
 	//TODO
 }
 
+/* Deletes objects for a character from the database, not memory */
+void delete_player_objects_mysql(MYSQL *conn, struct char_data *ch)
+{
+  char sql_buf[MAX_STRING_LENGTH];
+  struct mysql_parameter_bind_adapter *parameters;
+  int num_parameters = 1;
+
+  snprintf(sql_buf, sizeof(sql_buf)-1, "DELETE FROM %s.%s WHERE PlayerId = ?", MYSQL_DB, MYSQL_PLAYER_OBJECTS_TABLE);
+
+  log("MYSQLINFO: %s", sql_buf);
+
+  //include the ID
+  log("%d", num_parameters);
+  //create a parameter list (which is just the character's name here)
+  CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
+  parameters[0].data_length = 0;
+  parameters[0].data_type = MYSQL_TYPE_LONG;
+  parameters[0].int_data = GET_IDNUM(ch);
+
+  query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_DELETE);
+
+  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+}
+/*
+void insert_player_objects_mysql(MYSQL *conn, struct char_data *ch)
+{
+  char sql_buf[MAX_STRING_LENGTH];
+  char value_buf[MAX_STRING_LENGTH] = "\0";
+  char col_buf[MAX_STRING_LENGTH] = "\0";
+  char buf[MAX_STRING_LENGTH];
+  struct mysql_parameter_bind_adapter *parameters;
+  int num_parameters = 0, num_columns = 0, col_num, i = 0;
+  struct mysql_column_bind_adapter *col;
+  struct alias_data *temp;
+
+  col = &player_objects_table_index;
+
+  if (GET_ALIASES(ch) == NULL)
+    return;
+
+  i = 0;
+  while(*col[i].column_name != '\n')
+  {
+    strncat(col_buf, col[i].column_name, sizeof(col_buf)-1);
+    i++;
+    if(*col[i].column_name != '\n')
+      strncat(col_buf, ", ", sizeof(col_buf)-1);
+  }
+  num_columns = i;
+
+  for (temp = GET_ALIASES(ch); temp; temp = temp->next)
+  {
+    strncat(value_buf, " (?,?,?,?)", sizeof(value_buf)-1);
+    if(temp->next)
+      strncat(value_buf, ", ", sizeof(value_buf)-1);
+    num_parameters += num_columns;
+  }
+
+  delete_player_objects_mysql(conn, ch);
+
+  snprintf(sql_buf, sizeof(sql_buf)-1, "INSERT INTO %s.%s (%s) VALUES %s",
+    MYSQL_DB, MYSQL_PLAYER_OBJECTS_TABLE, col_buf, value_buf);
+
+  log("MYSQLINFO: %s", sql_buf);
+ 
+  log("%d", num_parameters);
+
+  CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
+
+  temp = GET_ALIASES(ch);
+  for(i = 0; i < num_parameters; i++)
+  {
+    col_num = i % num_columns;
+
+    parameters[i].data_type = col[col_num].data_type;
+
+    if(!strcmp(col[col_num].column_name, "PlayerID"))
+      parameters[i].int_data = GET_IDNUM(ch);
+    else if(!strcmp(col[col_num].column_name, "Alias"))
+    {
+      parameters[i].string_data = strdup(temp->alias);
+    }
+    else if(!strcmp(col[col_num].column_name, "Replacement"))
+      parameters[i].string_data = strdup(temp->replacement);
+    else if(!strcmp(col[col_num].column_name, "Type"))
+      parameters[i].int_data = temp->type;
+
+    if(parameters[i].data_type == MYSQL_TYPE_VAR_STRING && parameters[i].string_data)
+        parameters[i].data_length = strlen(parameters[i].string_data);
+    else 
+        parameters[i].data_length = 0;
+
+    if(col_num == (num_columns - 1))
+      temp=temp->next;
+  }
+
+  query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_INSERT);
+
+  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+}
+*/
+
 /* Writes one object record to FILE.  Old name: Obj_to_store() */
 int objsave_save_obj_record(struct obj_data *obj, FILE *fp, int locate)
 {

@@ -39,6 +39,7 @@
 #include "msgedit.h"
 #include "screen.h"
 #include <sys/stat.h>
+#include "mysql_db.h"
 
 /*  declarations of most of the 'global' variables */
 struct config_data config_info; /* Game configuration list.	 */
@@ -3895,6 +3896,40 @@ static void load_default_config( void )
   CONFIG_USE_AUTOWIZ            = use_autowiz;
   CONFIG_MIN_WIZLIST_LEV        = min_wizlist_lev;
 }
+
+void load_db_config( void )
+{
+  FILE *fl;
+  char buf[MAX_STRING_LENGTH];
+  char tag[MAX_INPUT_LENGTH];
+  char line[MAX_STRING_LENGTH];
+
+  //defaults
+  strncpy(MYSQL_USER, "username", sizeof(MYSQL_USER));
+  strncpy(MYSQL_PASS, "password", sizeof(MYSQL_PASS)); 
+  strncpy(MYSQL_HOST, "localhost", sizeof(MYSQL_HOST));
+  strncpy(MYSQL_DB, "database", sizeof(MYSQL_DB));
+
+  if ( !(fl = fopen(DB_CONFIG_FILE, "r")) ) {
+    snprintf(buf, sizeof(buf), "No %s file, please create", DB_CONFIG_FILE);
+    perror(buf);
+    exit(0);
+  }
+
+  while (get_line(fl, line)) 
+  {
+    split_argument(line, tag);
+    if (!str_cmp(tag, "Pass"))
+      snprintf(MYSQL_PASS, sizeof(MYSQL_PASS), "%s", line);
+    else if (!str_cmp(tag, "User"))
+      snprintf(MYSQL_USER, sizeof(MYSQL_USER), "%s", line);
+    else if (!str_cmp(tag, "Database"))
+      snprintf(MYSQL_DB, sizeof(MYSQL_HOST), "%s", line);
+    else if (!str_cmp(tag, "Host"))
+      snprintf(MYSQL_HOST, sizeof(MYSQL_HOST), "%s", line);
+  }
+}
+
 
 void load_config( void )
 {

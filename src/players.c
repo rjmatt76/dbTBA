@@ -44,6 +44,7 @@ void load_playerfile_index_from_mysql(struct mysql_bind_column *fields, int num_
 
 void get_mysql_database_conn()
 {
+  char buf[MAX_STRING_LENGTH];
   if(database_conn == NULL)
   {
     database_conn = mysql_init(NULL);
@@ -52,27 +53,38 @@ void get_mysql_database_conn()
     if( mysql_real_connect(database_conn, MYSQL_HOST, MYSQL_USER, MYSQL_PASS, MYSQL_DB, 0, NULL, 0) )
       log("MYSQLINFO: Successfully connected to database.");
     else
+    {
       log("MYSQLINFO: Failure connecting to database.");
+      exit(0);
+    }
   }
 
-  if (mysql_query(database_conn, CREATE_PLAYERFILE_TABLE))
+  snprintf(buf, sizeof(buf), CREATE_PLAYERFILE_TABLE, MYSQL_DB, MYSQL_PLAYER_TABLE);
+  if (mysql_query(database_conn, buf))
   {
-    log("MYSQLINFO: CREATE TABLE (%s) failed, %s\n", CREATE_PLAYERFILE_TABLE, mysql_error(database_conn));
+    log("MYSQLINFO: CREATE TABLE (%s) failed, %s\n", MYSQL_PLAYER_TABLE, mysql_error(database_conn));
   }
 
-  if (mysql_query(database_conn, CREATE_ALIAS_TABLE))
+  snprintf(buf, sizeof(buf), CREATE_ALIAS_TABLE, MYSQL_DB, MYSQL_ALIAS_TABLE);
+  if (mysql_query(database_conn, buf))
   {
-    log("MYSQLINFO: CREATE TABLE (%s) failed, %s\n", CREATE_ALIAS_TABLE, mysql_error(database_conn));
+    log("MYSQLINFO: CREATE TABLE (%s) failed, %s\n", MYSQL_ALIAS_TABLE, mysql_error(database_conn));
   }
 
-  if (mysql_query(database_conn, CREATE_PLAYER_OBJECTS_TABLE))
+  snprintf(buf, sizeof(buf), CREATE_PLAYER_OBJECTS_TABLE, MYSQL_DB, MYSQL_PLAYER_OBJECTS_TABLE);
+  if (mysql_query(database_conn, buf))
   {
-    log("MYSQLINFO: CREATE TABLE (%s) failed, %s\n", CREATE_PLAYER_OBJECTS_TABLE, mysql_error(database_conn));
+    log("MYSQLINFO: CREATE TABLE (%s) failed, %s\n", MYSQL_PLAYER_OBJECTS_TABLE, mysql_error(database_conn));
   }
 
+  snprintf(buf, sizeof(buf), CREATE_ROOMS_TABLE, MYSQL_DB, MYSQL_ROOM_TABLE);
+  if (mysql_query(database_conn, buf))
+  {
+    log("MYSQLINFO: CREATE TABLE (%s) failed, %s\n", MYSQL_ROOM_TABLE, mysql_error(database_conn));
+  }
 }
 
-cpp_extern struct mysql_column_bind_adapter playerfile_table_index[] =
+cpp_extern const struct mysql_column_bind_adapter playerfile_table_index[] =
 {
   { "ID",             MYSQL_TYPE_LONG           },
   { "Act_0",          MYSQL_TYPE_LONG           },
@@ -268,7 +280,7 @@ char *get_name_by_id(long id)
   return (NULL);
 }
 
-cpp_extern struct mysql_column_bind_adapter playerfile_table[] = 
+cpp_extern const struct mysql_column_bind_adapter playerfile_table[] = 
 {
   { "Ac",             MYSQL_TYPE_LONG    }, 
   { "Act_0",          MYSQL_TYPE_LONG    }, // bitvector
@@ -440,9 +452,6 @@ void update_playerfile_to_mysql_by_ID(MYSQL *conn, int ID, struct char_data *ch,
   char parameter_buf[MAX_STRING_LENGTH];
   char buf2[MAX_STRING_LENGTH];
   struct mysql_parameter_bind_adapter *parameters;
-  struct mysql_column_bind_adapter *pft;
-
-  pft = &playerfile_table;
 
   snprintf(buf, sizeof(buf)-1, "UPDATE strife_mud.playerfile SET ");
   i = 0;
@@ -676,8 +685,6 @@ void update_playerfile_to_mysql_by_ID(MYSQL *conn, int ID, struct char_data *ch,
   {
     log("%s: parameters[%d].column_name - %d %s", playerfile_table[i].column_name,
         i, parameters[i].int_data, parameters[i].data_type == MYSQL_TYPE_VAR_STRING ? (char*)parameters[i].string_data : "not string");
-    //if(parameters[i].string_data && parameters[i].data_type == MYSQL_TYPE_VAR_STRING)
-    //  free(parameters[i].string_data);
   }
   free_mysql_bind_adapter_parameters(parameters, num_parameters);
 }
@@ -688,9 +695,9 @@ int select_player_from_mysql_by_name(MYSQL *conn, const char *name, struct char_
   char sql_buf[MAX_STRING_LENGTH];
   char buf[MAX_STRING_LENGTH];
   struct mysql_parameter_bind_adapter *parameters;
-  struct mysql_column_bind_adapter *pft;
+  const struct mysql_column_bind_adapter *pft = &playerfile_table[0];
 
-  pft = &playerfile_table;
+//  pft = &playerfile_table;
     
   snprintf(buf, sizeof(buf)-1, "SELECT ");
   i = 0;
@@ -713,11 +720,8 @@ int select_player_from_mysql_by_name(MYSQL *conn, const char *name, struct char_
   parameters[0].int_data = 0;
     
   query_stmt_mysql(conn, parameters, pft, sql_buf, i, num_parameters, load_playerfile_from_mysql, ch, MYSQL_QUERY_SELECT);
-    
-  for(i = 0; i < num_parameters; i++)
-    if(parameters[i].string_data)
-      free(parameters[i].string_data);
-  free(parameters);
+
+  free_mysql_bind_adapter_parameters(parameters, num_parameters);
   return 1;
 }
 
@@ -866,7 +870,7 @@ void save_char_mysql(struct char_data * ch, struct affected_type *aff)
   }
 
   result = mysql_store_result(conn);
-  
+
   if (result == NULL) 
   {
     close_mysqlcon_with_error(conn);
@@ -875,7 +879,7 @@ void save_char_mysql(struct char_data * ch, struct affected_type *aff)
   }
 
   row = mysql_fetch_row(result);
-  
+
   snprintf(buf, sizeof(buf), "MYSQLINFO: %ld mysql_numrows", (long)mysql_num_rows(result));
   log("MYSQLINFO: %s", buf);
 
@@ -943,7 +947,7 @@ void save_char(struct char_data * ch)
   struct affected_type *stored_aff = NULL;
   struct affected_type *stored_affs = NULL;
   struct affected_type *list_pointer = NULL;
-  
+
   for(aff = ch->affected; aff; aff = aff->next)
   {
     CREATE(stored_aff, struct affected_type, 1);

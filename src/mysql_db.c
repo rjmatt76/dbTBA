@@ -117,7 +117,7 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
   /* prepare the statement */
   status = mysql_stmt_prepare(stmt, statement, strlen(statement));
   test_stmt_error(stmt, status);
-  log("MYSQLINFO: prepared statement parameter count - %d", mysql_stmt_param_count(stmt));
+  log("MYSQLINFO: prepared statement parameter count - %ld", mysql_stmt_param_count(stmt));
 
   /* initialize the binding for the parameters (? in SQL statement) */
   memset(param_bind,0,sizeof(MYSQL_BIND)*num_parameters);
@@ -131,7 +131,7 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
 //      param_bind[i].buffer_length = 4097;
       param_bind[i].buffer_length = strlen(parameters[i].string_data)+1;
       param_bind[i].is_null = 0;
-      param_bind[i].length= &parameters[i].data_length;
+      param_bind[i].length = &parameters[i].data_length;
     }
     else
     {
@@ -228,7 +228,7 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
   return 1;
 }
 
-static int test_error(MYSQL *mysql, int status)
+int test_error(MYSQL *mysql, int status)
 {
   if (status)
   {
@@ -239,7 +239,7 @@ static int test_error(MYSQL *mysql, int status)
   return 1;
 }
 
-static int test_stmt_error(MYSQL_STMT *stmt, int status)
+int test_stmt_error(MYSQL_STMT *stmt, int status)
 {
   if (status)
   {
