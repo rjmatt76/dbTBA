@@ -300,7 +300,7 @@ void delete_rooms_mysql(MYSQL *conn, zone_rnum rzone)
 
 int save_rooms_mysql(MYSQL *conn, zone_rnum rzone)
 {
-  struct mysql_column_bind_adapter *col;
+  struct mysql_column_bind_adapter *col = &room_table_index[0];
   char sql_buf[MAX_STRING_LENGTH];
   char value_buf[MAX_STRING_LENGTH] = "\0";
   char col_buf[MAX_STRING_LENGTH] = "\0";
@@ -308,8 +308,6 @@ int save_rooms_mysql(MYSQL *conn, zone_rnum rzone)
   struct mysql_parameter_bind_adapter *parameters;
   int num_parameters = 0, num_columns = 0, col_num, i = 0;
   struct room_data *room;
-
-  col = &room_table_index;
 
   i = 0;
   while(*col[i].column_name != '\n')

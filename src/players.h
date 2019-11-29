@@ -33,7 +33,7 @@
   `Prf` varchar(100) DEFAULT NULL, \
   `Lern` varchar(100) DEFAULT NULL, \
   `Str` int(11) DEFAULT NULL, \
-  `Int` int(11) DEFAULT NULL, \
+  `Intel` int(11) DEFAULT NULL, \
   `Wis` int(11) DEFAULT NULL, \
   `Dex` int(11) DEFAULT NULL, \
   `Con` int(11) DEFAULT NULL, \
@@ -47,6 +47,50 @@
   `Pver` varchar(100) DEFAULT NULL, \
   `Affs` varchar(100) DEFAULT NULL, \
   `Clas` int(11) DEFAULT NULL, \
+  `Ac` int(11) DEFAULT NULL, \
+  `Act_0` int(11) DEFAULT NULL, \
+  `Act_1` int(11) DEFAULT NULL, \
+  `Act_2` int(11) DEFAULT NULL, \
+  `Act_3` int(11) DEFAULT NULL, \
+  `Aff_0` int(11) DEFAULT NULL, \
+  `Aff_1` int(11) DEFAULT NULL, \
+  `Aff_2` int(11) DEFAULT NULL, \
+  `Aff_3` int(11) DEFAULT NULL, \
+  `Alin` int(11) DEFAULT NULL, \
+  `Badp` int(11) DEFAULT NULL, \
+  `Bank` int(11) DEFAULT NULL, \
+  `Descr` varchar(4096) DEFAULT NULL, \
+  `Drnk` int(11) DEFAULT NULL, \
+  `Drol` int(11) DEFAULT NULL, \
+  `Frez` int(11) DEFAULT NULL, \
+  `Hrol` int(11) DEFAULT NULL, \
+  `Hung` int(11) DEFAULT NULL, \
+  `Invs` int(11) DEFAULT NULL, \
+  `Lmot` int(11) DEFAULT NULL, \
+  `Lnew` int(11) DEFAULT NULL, \
+  `Olc` int(11) DEFAULT NULL, \
+  `Page` int(11) DEFAULT NULL, \
+  `PfIn` varchar(256) DEFAULT NULL, \
+  `PfOt` varchar(256) DEFAULT NULL, \
+  `Pref_0` int(11) DEFAULT NULL, \
+  `Pref_1` int(11) DEFAULT NULL, \
+  `Pref_2` int(11) DEFAULT NULL, \
+  `Pref_3` int(11) DEFAULT NULL, \
+  `Qstp` int(11) DEFAULT NULL, \
+  `Qpnt` int(11) DEFAULT NULL, \
+  `Qcnt` int(11) DEFAULT NULL, \
+  `ScrW` int(11) DEFAULT NULL, \
+  `Thir` int(11) DEFAULT NULL, \
+  `Thr1` int(11) DEFAULT NULL, \
+  `Thr2` int(11) DEFAULT NULL, \
+  `Thr3` int(11) DEFAULT NULL, \
+  `Thr4` int(11) DEFAULT NULL, \
+  `Thr5` int(11) DEFAULT NULL, \
+  `Wimp` int(11) DEFAULT NULL, \
+  `Qcur` int(11) DEFAULT NULL, \
+  `MaxHit` int(11) DEFAULT NULL, \
+  `MaxMana` int(11) DEFAULT NULL, \
+  `MaxMove` int(11) DEFAULT NULL, \
   `Deleted` int(11) DEFAULT -1, \
   PRIMARY KEY (`ID`), \
   UNIQUE KEY `idx_playerfile_Name` (`Name`) ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"

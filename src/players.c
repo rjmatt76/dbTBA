@@ -905,7 +905,6 @@ void save_char_mysql(struct char_data * ch, struct affected_type *aff)
 /* This is the ASCII Player Files save routine. */
 void save_char(struct char_data * ch)
 {
-  char buf[MAX_STRING_LENGTH];
   int i, j, id, save_index = FALSE;
   struct affected_type *aff; 
   struct obj_data *char_eq[NUM_WEARS];
@@ -1233,13 +1232,10 @@ static void insert_aliases_mysql(MYSQL *conn, struct char_data *ch)
   char sql_buf[MAX_STRING_LENGTH];
   char value_buf[MAX_STRING_LENGTH] = "\0";
   char col_buf[MAX_STRING_LENGTH] = "\0";
-  char buf[MAX_STRING_LENGTH];
   struct mysql_parameter_bind_adapter *parameters;
   int num_parameters = 0, num_columns = 0, col_num, i = 0;
-  struct mysql_column_bind_adapter *col;
+  struct mysql_column_bind_adapter *col = &alias_table_index[0];
   struct alias_data *temp;
-
-  col = &alias_table_index;
 
   if (GET_ALIASES(ch) == NULL)
     return;

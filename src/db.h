@@ -321,6 +321,7 @@ int count_hash_records(FILE *fl);
 bitvector_t asciiflag_conv(char *flag);
 void renum_world(void);
 void load_config( void );
+void load_db_config( void );
 
 /* Various Files */
 extern char *credits;
