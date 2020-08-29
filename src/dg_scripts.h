@@ -309,8 +309,6 @@ int script_driver(void *go_adress, trig_data *trig, int type, int mode);
 trig_rnum real_trigger(trig_vnum vnum);
 void process_eval(void *go, struct script_data *sc, trig_data *trig,
                  int type, char *cmd);
-void read_saved_vars(struct char_data *ch);
-void save_char_vars(struct char_data *ch);
 void init_lookup_table(void);
 void add_to_lookup_table(long uid, void *c);
 void remove_from_lookup_table(long uid);
@@ -345,7 +343,6 @@ void extract_script(void *thing, int type);
 void extract_script_mem(struct script_memory *sc);
 void free_proto_script(void *thing, int type);
 void copy_proto_script(void *source, void *dest, int type);
-void delete_variables(const char *charname);
 void update_wait_events(struct room_data *to, struct room_data *from);
 
 /* from dg_comm.c */

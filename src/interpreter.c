@@ -1258,12 +1258,6 @@ int enter_player_game (struct descriptor_data *d)
   /* find_char helper */
   add_to_lookup_table(d->character->script_id, (void *)d->character);
 
-  /* After moving saving of variables to the player file, this should only
-   * be called in case nothing was found in the pfile. If something was
-   * found, SCRIPT(ch) will be set. */
-  if (!SCRIPT(d->character))
-    read_saved_vars(d->character);
-
   d->character->next = character_list;
   character_list = d->character;
   char_to_room(d->character, load_room);
@@ -1773,7 +1767,6 @@ void nanny(struct descriptor_data *d, char *arg)
           remove_player(player_i);
         }
 
-      delete_variables(GET_NAME(d->character));
       write_to_output(d, "Character '%s' deleted! Goodbye.\r\n", GET_NAME(d->character));
       mudlog(NRM, MAX(LVL_GOD, GET_INVIS_LEV(d->character)), TRUE, "%s (lev %d) has self-deleted.",
        GET_NAME(d->character), GET_LEVEL(d->character));

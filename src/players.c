@@ -105,7 +105,7 @@ void load_playerfile_index_from_mysql(struct mysql_bind_column *fields, int num_
   {
     for(i = 0; i < num_fields; i++)
     {
-      log("MYSQLINFO: field_name_meta: %s %d %s", fields[i].name, fields[i].col_int_buffer, fields[i].col_string_buffer == NULL ? "<NULL>": fields[i].col_string_buffer);
+      log("MYSQLINFO: Field name: %s, int_buffer: %d, string_buffer: %s", fields[i].name, fields[i].col_int_buffer, fields[i].col_string_buffer == NULL ? "<NULL>": fields[i].col_string_buffer);
       if (!strcmp(fields[i].name, "ID"))   player_table[row].id = (fields[i].col_int_buffer);
       else if (!strcmp(fields[i].name, "Name")) 
       {
@@ -145,7 +145,7 @@ int select_player_index_from_mysql(MYSQL *conn)
   }
 
   snprintf(sql_buf, sizeof(sql_buf) - 1, "%s FROM %s.%s WHERE ID <> ?", buf,  MYSQL_DB, MYSQL_PLAYER_TABLE);
-  log(sql_buf);
+  log("MYSQLINFO: %s", sql_buf);
 
   num_parameters = 1;
   num_columns = i;
@@ -369,7 +369,7 @@ void load_playerfile_from_mysql(struct mysql_bind_column *fields, int num_fields
     
   for(i = 0; i < num_fields; i++)
   {
-    log("MYSQLINFO: field_name_meta: %s %d %s", fields[i].name, fields[i].col_int_buffer, fields[i].col_string_buffer == NULL ? "<NULL>": fields[i].col_string_buffer);
+    log("MYSQLINFO: Field name: %s, int_buffer: %d, string_buffer: %s", fields[i].name, fields[i].col_int_buffer, fields[i].col_string_buffer == NULL ? "<NULL>": fields[i].col_string_buffer);
     if (!strcmp(fields[i].name, "Ac"))   GET_AC(ch) = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Act_0"))   PLR_FLAGS(ch)[0] = (fields[i].col_int_buffer);
     else if (!strcmp(fields[i].name, "Act_1"))   PLR_FLAGS(ch)[1] = (fields[i].col_int_buffer);
@@ -514,7 +514,7 @@ void update_playerfile_to_mysql_by_ID(MYSQL *conn, int ID, struct char_data *ch,
         }     
         aff = aff->next;
       }
-      log("parameter buf -> %s", parameter_buf);
+      log("MYSQLINFO: parameter affects data: %s", parameter_buf);
       parameters[i].string_data = strdup(parameter_buf);
     }
     else if (!strcmp(playerfile_table[i].column_name, "Alin")) 
@@ -677,13 +677,13 @@ void update_playerfile_to_mysql_by_ID(MYSQL *conn, int ID, struct char_data *ch,
     else 
         parameters[i].data_length = 0;
   }
-  log("%d", num_parameters);
+  log("MYSQLINFO: Num Parameters: %d", num_parameters);
   log("MYSQLINFO: Updating Player");
   query_stmt_mysql(conn, parameters, NULL, buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_UPDATE);
   
   for(i = 0; i < num_parameters; i++)
   {
-    log("%s: parameters[%d].column_name - %d %s", playerfile_table[i].column_name,
+    log("MYSQL_INFO: column: %s, Parameter %d, int_data: %d, string_data: %s", playerfile_table[i].column_name,
         i, parameters[i].int_data, parameters[i].data_type == MYSQL_TYPE_VAR_STRING ? (char*)parameters[i].string_data : "not string");
   }
   free_mysql_bind_adapter_parameters(parameters, num_parameters);
@@ -1135,7 +1135,7 @@ static void load_affects(char *affects_str, struct char_data *ch)
   struct affected_type af;
 
   line[0] = '\0';
-  log("%s", affects_str);
+  log("MYSQLINFO: affects string: %s", affects_str);
   aff_start = 0;
   affects_str_len = strlen(affects_str);
   for(i = 0; i < affects_str_len; i++)
@@ -1161,7 +1161,7 @@ static void load_affects(char *affects_str, struct char_data *ch)
         af.bitvector[2] = num7;
         af.bitvector[3] = num8;
         if(n_vars != 8)
-          log("SYSERR: Invalid affects in pfile (%s), expecting 8 values", GET_NAME(ch));
+          log("SYSERR: Invalid affects in database (%s), expecting 8 values", GET_NAME(ch));
         affect_to_char(ch, &af);
       }
     }
@@ -1215,7 +1215,7 @@ void delete_aliases_mysql(MYSQL *conn, struct char_data *ch)
   log("MYSQLINFO: %s", sql_buf);
 
   //include the ID
-  log("%d", num_parameters);
+  log("MYSQLINFO: Num Parameters: %d", num_parameters);
   //create a parameter list (which is just the character's name here)
   CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
   parameters[0].data_length = 0;
@@ -1265,7 +1265,7 @@ static void insert_aliases_mysql(MYSQL *conn, struct char_data *ch)
 
   log("MYSQLINFO: %s", sql_buf);
 
-  log("%d", num_parameters);
+  log("MYSQLINFO: Num Parameters: %d", num_parameters);
 
   CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
 
@@ -1293,7 +1293,7 @@ static void insert_aliases_mysql(MYSQL *conn, struct char_data *ch)
         parameters[i].data_length = 0;
 
     if(col_num == (num_columns - 1))
-      temp=temp->next;
+      temp = temp->next;
   }
 
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_INSERT);
@@ -1356,8 +1356,7 @@ void read_aliases_from_mysql(struct mysql_bind_column *fields, int num_fields, i
 
     for(i = 0; i < num_fields; i++)
     {
-      log("MYSQLINFO: field_name_meta: %s %d %s", fields[i].name, fields[i].col_int_buffer, 
-        fields[i].col_string_buffer == NULL ? "<NULL>": fields[i].col_string_buffer);
+      log("MYSQLINFO: Field name: %s, int_buffer: %d, string_buffer: %s", fields[i].name, fields[i].col_int_buffer, fields[i].col_string_buffer == NULL ? "<NULL>": fields[i].col_string_buffer);
       if (!strcmp(fields[i].name, "PlayerID"))
         continue;
       else if (!strcmp(fields[i].name, "Alias")) 

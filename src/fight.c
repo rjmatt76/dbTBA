@@ -912,11 +912,11 @@ void perform_violence(void)
     }
 
     if (IS_NPC(ch)) {
-      if (GET_MOB_WAIT(ch) > 0) {
-        GET_MOB_WAIT(ch) -= PULSE_VIOLENCE;
+      if (GET_WAIT_STATE(ch) > 0) {
+        GET_WAIT_STATE(ch) -= PULSE_VIOLENCE;
         continue;
       }
-      GET_MOB_WAIT(ch) = 0;
+      GET_WAIT_STATE(ch) = 0;
       if (GET_POS(ch) < POS_FIGHTING) {
         GET_POS(ch) = POS_FIGHTING;
         act("$n scrambles to $s feet!", TRUE, ch, 0, 0, TO_ROOM);

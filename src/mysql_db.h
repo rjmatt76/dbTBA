@@ -44,7 +44,7 @@ struct mysql_bind_column {
   char name[MAX_INPUT_LENGTH];
   char col_string_buffer[MAX_INPUT_LENGTH];
   int col_int_buffer;
-  my_bool is_null;
+  bool is_null;
   unsigned long col_length;
   unsigned long buffer_length;
 };

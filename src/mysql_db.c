@@ -127,8 +127,7 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
     if(parameters[i].data_type == MYSQL_TYPE_VAR_STRING)
     {
       param_bind[i].buffer_type = MYSQL_TYPE_VAR_STRING;
-      param_bind[i].buffer=(char *) parameters[i].string_data;
-//      param_bind[i].buffer_length = 4097;
+      param_bind[i].buffer = (char *) parameters[i].string_data;
       param_bind[i].buffer_length = strlen(parameters[i].string_data)+1;
       param_bind[i].is_null = 0;
       param_bind[i].length = &parameters[i].data_length;
@@ -136,7 +135,7 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
     else
     {
       param_bind[i].buffer_type = MYSQL_TYPE_LONG;
-      param_bind[i].buffer=(int *) &parameters[i].int_data;
+      param_bind[i].buffer= (int *) &parameters[i].int_data;
       param_bind[i].is_null = 0;
     }
   }
@@ -151,12 +150,12 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
     if(parameters[i].data_type == MYSQL_TYPE_VAR_STRING)
     {
       parameters[i].data_length = strlen(parameters[i].string_data);
-      log("Parameter string %ld %s", parameters[i].data_type, parameters[i].string_data); 
-      log("XXXXX %d XXXXX", (strlen(parameters[i].string_data)+1));
+      log("MYSQLINFO: Parameter %-3d(string): %s, string_length: %d", i, parameters[i].string_data,
+              (strlen(parameters[i].string_data)+1));
     }
     else
     {
-      log("Parameter int %ld %d", parameters[i].data_type, parameters[i].int_data); 
+      log("MYSQLINFO: Parameter %-3d(int) datatype: %ld, int_data: %d", i, parameters[i].data_type, parameters[i].int_data); 
     }
   }
   
@@ -164,8 +163,6 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
   log("MYSQLINFO: stmt executing");
   status = mysql_stmt_execute(stmt); 
   test_stmt_error(stmt, status);
-
-  log("MYSQLINFO: stmt executed");
   
   if(querytype == MYSQL_QUERY_SELECT)
   {
@@ -200,7 +197,7 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
     /* now actually bind the result values of the query to col_bind which also fills col_values */
     if (mysql_stmt_bind_result(stmt, col_bind))
     {
-      log("MYSQLINFO:  mysql_stmt_bind_result() failed");
+      log("MYSQLINFO: mysql_stmt_bind_result() failed");
       log(" %s\n", mysql_stmt_error(stmt));
       return -1;
     }
@@ -213,10 +210,11 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
       return (-1);
     }
     num_rows = mysql_stmt_num_rows(stmt);
-    log("Rows: %d", num_rows);
+    log("MYSQLINFO: Rows selected: %d", num_rows);
 
     load_function(col_values, num_columns, num_rows, ch, stmt);
   }
+  
   /* Close the statement */
   if (mysql_stmt_close(stmt))
   {

@@ -657,12 +657,6 @@ do                                                              \
 /** Old wait state function.
  * @deprecated Use GET_WAIT_STATE */
 #define WAIT_STATE(ch, cycle) do { GET_WAIT_STATE(ch) = (cycle); } while(0)
-/** Old check wait.
- * @deprecated Use GET_WAIT_STATE */
-#define CHECK_WAIT(ch)                ((ch)->wait > 0)
-/** Old mob wait check.
- * @deprecated Use GET_WAIT_STATE */
-#define GET_MOB_WAIT(ch)      GET_WAIT_STATE(ch)
 /** Use this macro to check the wait state of ch. */
 #define GET_WAIT_STATE(ch)    ((ch)->wait)
 

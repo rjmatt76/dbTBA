@@ -32,7 +32,6 @@
 #define LIB_ETC		":etc:"
 #define LIB_PLRTEXT	":plrtext:"
 #define LIB_PLROBJS	":plrobjs:"
-#define LIB_PLRVARS	":plrvars:"
 #define LIB_PLRFILES	":plrfiles:"
 #define LIB_HOUSE	":house:"
 #define SLASH		":"
@@ -44,7 +43,6 @@
 #define LIB_ETC		"etc/"
 #define LIB_PLRTEXT	"plrtext/"
 #define LIB_PLROBJS	"plrobjs/"
-#define LIB_PLRVARS	"plrvars/"
 #define LIB_HOUSE	"house/"
 #define LIB_PLRFILES    "plrfiles/"
 #define SLASH		"/"
@@ -54,7 +52,6 @@
 
 #define SUF_OBJS	"objs"
 #define SUF_TEXT	"text"
-#define SUF_MEM	        "mem"
 #define SUF_PLR		"plr"
 
 #if defined(CIRCLE_AMIGA)

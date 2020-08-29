@@ -17,10 +17,6 @@
 #ifndef _DG_EVENT_H_
 #define _DG_EVENT_H_
 
-/** How often will heartbeat() call the 'wait' event function?
- * @deprecated Currently not used. */
-#define PULSE_DG_EVENT 1
-
 /**************************************************************************
  * Begin event structures and defines.
  **************************************************************************/

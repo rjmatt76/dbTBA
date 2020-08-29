@@ -264,17 +264,6 @@ void copy_proto_script(void *source, void *dest, int type)
   }
 }
 
-void delete_variables(const char *charname)
-{
-  char filename[PATH_MAX];
-
-  if (!get_filename(filename, sizeof(filename), SCRIPT_VARS_FILE, charname))
-    return;
-
-  if (remove(filename) < 0 && errno != ENOENT)
-    log("SYSERR: deleting variable file %s: %s", filename, strerror(errno));
-}
-
 void update_wait_events(struct room_data *to, struct room_data *from)
 {
   struct trig_data *trig;

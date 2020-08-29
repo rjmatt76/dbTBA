@@ -104,11 +104,6 @@ struct alias_data {
 #define SCMD_SE      SOUTHEAST
 #define SCMD_SW      SOUTHWEST
 
-/** @deprecated all old do_poof stuff is deprecated and unused. */
-#define SCMD_POOFIN   0
-/** @deprecated all old do_poof stuff is deprecated and unused. */
-#define SCMD_POOFOUT  1
-
 /* do_oasis_Xlist */
 #define SCMD_OASIS_RLIST       0
 #define SCMD_OASIS_MLIST       1
