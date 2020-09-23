@@ -36,6 +36,7 @@ static void load_affects(char *affects_str, struct char_data *ch);
 static void load_skills(FILE *fl, struct char_data *ch);
 static void load_quests(FILE *fl, struct char_data *ch);
 
+static void insert_player_vars_mysql(MYSQL *conn, struct char_data *ch);
 static void insert_aliases_mysql(MYSQL *conn, struct char_data *ch);
 static void select_aliases_mysql(MYSQL *conn, struct char_data *ch);
 void read_aliases_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, struct char_data *ch, MYSQL_STMT *stmt);
@@ -71,6 +72,12 @@ void get_mysql_database_conn()
     log("MYSQLINFO: CREATE TABLE (%s) failed, %s\n", MYSQL_ALIAS_TABLE, mysql_error(database_conn));
   }
 
+  snprintf(buf, sizeof(buf), CREATE_PLAYER_VARS_TABLE, MYSQL_DB, MYSQL_PLAYER_VARS_TABLE);
+  if (mysql_query(database_conn, buf))
+  {
+    log("MYSQLINFO: CREATE TABLE (%s) failed, %s\n", MYSQL_PLAYER_VARS_TABLE, mysql_error(database_conn));
+  }
+
   snprintf(buf, sizeof(buf), CREATE_PLAYER_OBJECTS_TABLE, MYSQL_DB, MYSQL_PLAYER_OBJECTS_TABLE);
   if (mysql_query(database_conn, buf))
   {
@@ -82,6 +89,13 @@ void get_mysql_database_conn()
   {
     log("MYSQLINFO: CREATE TABLE (%s) failed, %s\n", MYSQL_ROOM_TABLE, mysql_error(database_conn));
   }
+
+  snprintf(buf, sizeof(buf), CREATE_ROOM_DIRS_TABLE, MYSQL_DB, MYSQL_ROOM_DIR_TABLE);
+  if (mysql_query(database_conn, buf))
+  {
+    log("MYSQLINFO: CREATE TABLE (%s) failed, %s\n", MYSQL_ROOM_DIR_TABLE, mysql_error(database_conn));
+  }
+
 }
 
 cpp_extern const struct mysql_column_bind_adapter playerfile_table_index[] =
@@ -353,7 +367,6 @@ cpp_extern const struct mysql_column_bind_adapter playerfile_table[] =
   { "Thr5",           MYSQL_TYPE_LONG     },
   { "Titl",           MYSQL_TYPE_VAR_STRING   },
 //      { "Trig",           MYSQL_TYPE_STRING, GET_TITLE(ch)                },
-//      { "Vars",           MYSQL_TYPE_LONG           },
   { "Wate",           MYSQL_TYPE_LONG     },
   { "Wimp",           MYSQL_TYPE_LONG     },
   { "Wis",            MYSQL_TYPE_LONG     },
@@ -533,28 +546,27 @@ void update_playerfile_to_mysql_by_ID(MYSQL *conn, int ID, struct char_data *ch,
       parameters[i].int_data = (ch->real_abils.con);
     else if (!strcmp(playerfile_table[i].column_name, "Descr"))
     {
-    
       if (ch->player.description && *ch->player.description) {
         strcpy(parameter_buf, ch->player.description);
         strip_cr(parameter_buf);
         parameters[i].string_data = strdup(parameter_buf);
       }
       else
-        parameters[i].string_data = strdup("Description was blank");     
+        parameters[i].string_data = strdup("Description was blank");
     }
-    else if (!strcmp(playerfile_table[i].column_name, "Dex")) 
-      parameters[i].int_data = (ch->real_abils.dex);  
-    else if (!strcmp(playerfile_table[i].column_name, "Drnk")) 
+    else if (!strcmp(playerfile_table[i].column_name, "Dex"))
+      parameters[i].int_data = (ch->real_abils.dex);
+    else if (!strcmp(playerfile_table[i].column_name, "Drnk"))
       parameters[i].int_data = (GET_COND(ch, DRUNK));
-    else if (!strcmp(playerfile_table[i].column_name, "Drol")) 
+    else if (!strcmp(playerfile_table[i].column_name, "Drol"))
       parameters[i].int_data = (GET_DAMROLL(ch));
-    else if (!strcmp(playerfile_table[i].column_name, "Exp")) 
+    else if (!strcmp(playerfile_table[i].column_name, "Exp"))
       parameters[i].int_data = (GET_EXP(ch));
-    else if (!strcmp(playerfile_table[i].column_name, "Frez")) 
+    else if (!strcmp(playerfile_table[i].column_name, "Frez"))
       parameters[i].int_data = (GET_FREEZE_LEV(ch));
-    else if (!strcmp(playerfile_table[i].column_name, "Gold")) 
+    else if (!strcmp(playerfile_table[i].column_name, "Gold"))
       parameters[i].int_data = (GET_GOLD(ch));
-    else if (!strcmp(playerfile_table[i].column_name, "Hit")) 
+    else if (!strcmp(playerfile_table[i].column_name, "Hit"))
       parameters[i].int_data = (GET_HIT(ch));
     else if (!strcmp(playerfile_table[i].column_name, "Hite")) 
       parameters[i].int_data = (GET_HEIGHT(ch));
@@ -812,9 +824,10 @@ int load_char(const char *name, struct char_data *ch)
     */
     select_player_from_mysql_by_name(conn, name, ch);
     select_aliases_mysql(conn, ch);
+    select_player_vars_mysql(conn, ch);
     mysql_close(conn);
 
-  /* end of test mysql load code */
+    /* end of test mysql load code */
 
 
 /* TODO:
@@ -828,9 +841,14 @@ int load_char(const char *name, struct char_data *ch)
           add_trigger(SCRIPT(ch), t, -1);
           }
          }
-
-	     if (!strcmp(tag, "Vars"))	read_saved_vars_ascii(fl, ch, atoi(line));
 */
+
+
+  /* Create the space for the script structure which holds the vars. We need to
+   * do this first, because later calls to 'remote' will need. A script already
+   * assigned. */
+  CREATE(SCRIPT(ch), struct script_data, 1);
+
 
   }
 
@@ -898,7 +916,9 @@ void save_char_mysql(struct char_data * ch, struct affected_type *aff)
 
   update_playerfile_to_mysql_by_ID(conn, GET_IDNUM(ch), ch, aff);
 
+  insert_player_vars_mysql(conn, ch);
   insert_aliases_mysql(conn, ch);
+  
 }
 
 /* Write the vital data of a player to the player file. */
@@ -1192,6 +1212,133 @@ void load_quests(FILE *fl, struct char_data *ch)
     if (num != NOTHING)
       add_completed_quest(ch, num);
   } while (num != NOTHING);
+}
+
+cpp_extern struct mysql_column_bind_adapter player_vars_table_index[] =
+{
+  { "PlayerID",       MYSQL_TYPE_LONG           },
+  { "Name",           MYSQL_TYPE_VAR_STRING     },
+  { "Value",          MYSQL_TYPE_VAR_STRING     },
+  { "Context",        MYSQL_TYPE_LONG           },
+  { "\n",             MYSQL_TYPE_LONG           }
+};
+
+/* Deletes all player variables for a character from the database, not memory */
+void delete_player_vars_mysql(MYSQL *conn, struct char_data *ch)
+{
+  char sql_buf[MAX_STRING_LENGTH];
+  struct mysql_parameter_bind_adapter *parameters;
+  int num_parameters = 1;
+
+  snprintf(sql_buf, sizeof(sql_buf)-1, "DELETE FROM %s.%s WHERE PlayerId = ?", MYSQL_DB, MYSQL_PLAYER_VARS_TABLE);
+
+  log("MYSQLINFO: %s", sql_buf);
+
+  //include the ID
+  log("MYSQLINFO: Num Parameters: %d", num_parameters);
+  //create a parameter list (which is just the character's name here)
+  CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
+  parameters[0].data_length = 0;
+  parameters[0].data_type = MYSQL_TYPE_LONG;
+  parameters[0].int_data = GET_IDNUM(ch);
+
+  query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_DELETE);
+
+  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+}
+
+/* save a character's variables to the database */
+void insert_player_vars_mysql(MYSQL *conn, struct char_data *ch)
+{
+  struct trig_var_data *vars;
+  int count = 0;
+  char sql_buf[MAX_STRING_LENGTH];
+  char value_buf[MAX_STRING_LENGTH] = "\0";
+  char col_buf[MAX_STRING_LENGTH] = "\0";
+  struct mysql_parameter_bind_adapter *parameters;
+  int num_parameters = 0, num_columns = 0, col_num, i = 0;
+  struct mysql_column_bind_adapter *col = &player_vars_table_index[0];
+
+  /* Immediate return if no script (and therefore no variables) structure has 
+   * been created. this will happen when the player is logging in */
+  if (SCRIPT(ch) == NULL) return;
+
+  /* we should never be called for an NPC, but just in case... */
+  if (IS_NPC(ch)) return;
+
+  /* make sure this char has global variables to save */
+  if (ch->script->global_vars == NULL) return;
+
+  i = 0;
+  while(*col[i].column_name != '\n')
+  {
+    strncat(col_buf, col[i].column_name, sizeof(col_buf)-1);
+    i++;
+    if(*col[i].column_name != '\n')
+      strncat(col_buf, ", ", sizeof(col_buf)-1);
+  }
+  num_columns = i;
+
+  for (vars = ch->script->global_vars;vars;vars = vars->next)
+  {
+    /* Note that currently, context will always be zero. This may change in the 
+    * future */
+    if (*vars->name != '-')
+    { 
+      strncat(value_buf, " (?,?,?,?)", sizeof(value_buf)-1);
+      if(vars->next)
+        strncat(value_buf, ", ", sizeof(value_buf)-1);
+      num_parameters += num_columns;
+    }
+  }
+
+  delete_player_vars_mysql(conn, ch);
+
+  snprintf(sql_buf, sizeof(sql_buf)-1, "INSERT INTO %s.%s (%s) VALUES %s",
+    MYSQL_DB, MYSQL_PLAYER_VARS_TABLE, col_buf, value_buf);
+
+  log("MYSQLINFO: %s", sql_buf);
+
+  log("MYSQLINFO: Num Parameters: %d", num_parameters);
+
+  CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
+
+  vars = ch->script->global_vars;
+
+  for(i = 0; i < num_parameters; i++)
+  {
+    col_num = i % num_columns;
+
+    parameters[i].data_type = col[col_num].data_type;
+
+    if(!strcmp(col[col_num].column_name, "PlayerID"))
+      parameters[i].int_data = GET_IDNUM(ch);
+    else if(!strcmp(col[col_num].column_name, "Name"))
+    {
+      parameters[i].string_data = strdup(vars->name);
+    }
+    else if(!strcmp(col[col_num].column_name, "Value"))
+      parameters[i].string_data = strdup(vars->value);
+    else if(!strcmp(col[col_num].column_name, "Context"))
+      parameters[i].int_data = vars->context;
+
+    if(parameters[i].data_type == MYSQL_TYPE_VAR_STRING && parameters[i].string_data)
+        parameters[i].data_length = strlen(parameters[i].string_data);
+    else 
+        parameters[i].data_length = 0;
+
+    if(col_num == (num_columns - 1))
+      while(vars && *vars->name != '-')
+        vars = vars->next;
+  }
+
+  query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_INSERT);
+
+  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+}
+
+void select_player_vars_mysql(MYSQL *conn, struct char_data *ch)
+{
 }
 
 cpp_extern struct mysql_column_bind_adapter alias_table_index[] =

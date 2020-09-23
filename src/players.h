@@ -102,6 +102,13 @@
   `Type` varchar(100) DEFAULT NULL \
   ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
 
+#define CREATE_PLAYER_VARS_TABLE "CREATE TABLE IF NOT EXISTS `%s`.`%s` ( \
+  `PlayerId` INT NOT NULL, \
+  `name` VARCHAR(100) NOT NULL, \
+  `value` VARCHAR(45) NULL, \
+  `context` INT NULL DEFAULT NULL \
+  ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
+
 #define CREATE_PLAYER_OBJECTS_TABLE "CREATE TABLE IF NOT EXISTS `%s`.`%s` ( \
   `PlayerId` int(11) NOT NULL, \
   `Vnum` int(11) NOT NULL, \
@@ -121,5 +128,17 @@
   `RoomFlags_2` int(11) NOT NULL, \
   `RoomFlags_3` int(11) NOT NULL \
   ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
+
+
+#define CREATE_ROOM_DIRS_TABLE "CREATE TABLE IF NOT EXISTS `%s`.`%s` ( \
+  `Vnum` int(11) NOT NULL, \
+  `DirectionNum` int(11) NOT NULL, \
+  `Keyword` varchar(250) DEFAULT NULL, \
+  `Description`  varchar(2048) DEFAULT NULL, \
+  `ExitInfo` int(11) NOT NULL, \
+  `KeyNum` int(11) NOT NULL, \
+  `ToRoom` int(11) NOT NULL \
+  ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
+
 
 #endif /* _PLAYERS_H_ */

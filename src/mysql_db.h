@@ -4,15 +4,34 @@
 #include <mysql.h>
 
 void get_mysql_database_conn();
-
+/*
 #define MYSQL_QUERY_SELECT 1
 #define MYSQL_QUERY_UPDATE 2
 #define MYSQL_QUERY_DELETE 3
 #define MYSQL_QUERY_INSERT 4
+*/
+
+typedef enum
+{
+  MYSQL_QUERY_SELECT,
+  MYSQL_QUERY_UPDATE,
+  MYSQL_QUERY_DELETE,
+  MYSQL_QUERY_INSERT
+} MySqlQueryType;
 
 #define MYSQL_ALIAS_TABLE "player_alias"
 #define MYSQL_PLAYER_OBJECTS_TABLE "player_objects"
+//dg trigger variables saved
+#define MYSQL_PLAYER_VARS_TABLE "player_vars"
+
 #define MYSQL_ROOM_TABLE "rooms"
+#define MYSQL_ROOM_DIR_TABLE "room_direction_data"
+#define MYSQL_OBJECT_TABLE "objects"
+#define MYSQL_MOBILE_TABLE "mobiles"
+#define MYSQL_ZONE_TABLE "zones"
+#define MYSQL_TRIGGER_TABLE "triggers"
+
+#define MYSQL_MAIL_TABLE "mail"
 
 #define MYSQL_DB mysql_connection_strings.database
 #define MYSQL_USER mysql_connection_strings.username
