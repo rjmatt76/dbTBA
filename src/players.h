@@ -1,10 +1,15 @@
 #ifndef _PLAYERS_H_
 #define _PLAYERS_H_
 
-#define MYSQL_PLAYER_TABLE "playerfile"
-
 /* use mysql database instead of ascii pfiles */
 #define USING_MYSQL_DATABASE_FOR_PLAYERFILE 1
+
+typedef enum
+{
+  PLAYER_ARRAY_SKILLS,
+  PLAYER_ARRAY_QUESTS,
+  PLAYER_ARRAY_COOLDOWNS
+} PlayerArrayTypes; 
 
 /* need to change types/sizes later */
 #define CREATE_PLAYERFILE_TABLE "CREATE TABLE IF NOT EXISTS `%s`.`%s` ( \
@@ -104,9 +109,16 @@
 
 #define CREATE_PLAYER_VARS_TABLE "CREATE TABLE IF NOT EXISTS `%s`.`%s` ( \
   `PlayerId` INT NOT NULL, \
-  `name` VARCHAR(100) NOT NULL, \
-  `value` VARCHAR(45) NULL, \
-  `context` INT NULL DEFAULT NULL \
+  `Name` VARCHAR(100) NOT NULL, \
+  `Value` VARCHAR(45) NULL, \
+  `Context` INT NULL DEFAULT NULL \
+  ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
+
+#define CREATE_PLAYER_ARRAYS_TABLE "CREATE TABLE IF NOT EXISTS `%s`.`%s` ( \
+  `PlayerId` INT NOT NULL, \
+  `ArrayId` INT NOT NULL, \
+  `Value` INT NULL DEFAULT NULL, \
+  `Type` INT NULL DEFAULT NULL \
   ) ENGINE=MyISAM DEFAULT CHARSET=latin1;"
 
 #define CREATE_PLAYER_OBJECTS_TABLE "CREATE TABLE IF NOT EXISTS `%s`.`%s` ( \

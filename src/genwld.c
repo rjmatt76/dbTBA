@@ -296,7 +296,6 @@ void delete_rooms_mysql(MYSQL *conn, zone_rnum rzone)
   snprintf(sql_buf, sizeof(sql_buf)-1, "DELETE FROM %s.%s WHERE Zone = ?", MYSQL_DB, MYSQL_ROOM_TABLE);
 
   log("MYSQLINFO: %s", sql_buf);
-
   log("%d", num_parameters);
 
   /* zone number */
@@ -315,46 +314,29 @@ int save_rooms_mysql(MYSQL *conn, zone_rnum rzone)
   struct mysql_column_bind_adapter *col = &room_table_index[0];
   char sql_buf[MAX_STRING_LENGTH];
   char value_buf[MAX_STRING_LENGTH] = "\0";
-  char col_buf[MAX_STRING_LENGTH] = "\0";
-  char buf[MAX_STRING_LENGTH];
+  char buf[MAX_STRING_LENGTH] = "\0";
   struct mysql_parameter_bind_adapter *parameters;
-  int num_parameters = 0, num_columns = 0, col_num, i = 0;
+  int num_parameters = 0, num_columns = 0, col_num, num_rows = 0, i = 0;
   struct room_data *room;
 
-  i = 0;
-  while(*col[i].column_name != '\n')
-  {
-    strncat(col_buf, col[i].column_name, sizeof(col_buf)-1);
-    i++;
-    if(*col[i].column_name != '\n')
-      strncat(col_buf, ", ", sizeof(col_buf)-1);
-  }
-  num_columns = i;
+  num_columns = get_column_sql(buf, sizeof(buf), &room_table_index);
 
-  int needs_comma = 0;
   for (i = genolc_zone_bottom(rzone); i <= zone_table[rzone].top; i++)
   {
     room_rnum r_num;
     
     if((r_num = real_room(i)) != NOWHERE) 
     {
-      if(needs_comma)
-      {
-        strncat(value_buf, ", ", sizeof(value_buf)-1);
-        needs_comma = 0;
-      }
-      strncat(value_buf, " (?,?,?,?,?,?,?,?,?)", sizeof(value_buf)-1);
-      if((i+1) <= zone_table[rzone].top)
-        needs_comma = 1;
-      num_parameters += num_columns;
+      num_rows++;
     }
   }
 
+  num_parameters = get_parameter_markers_sql(value_buf, sizeof(value_buf), num_columns, num_rows);
+
   snprintf(sql_buf, sizeof(sql_buf)-1, "INSERT INTO %s.%s (%s) VALUES %s",
-     MYSQL_DB, MYSQL_ROOM_TABLE, col_buf, value_buf);
+     MYSQL_DB, MYSQL_ROOM_TABLE, buf, value_buf);
 
   log("MYSQLINFO: %s", sql_buf);
-
   log("MYSQLINFO: parameters: %d", num_parameters);
 
   CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
@@ -416,7 +398,6 @@ void delete_exits_mysql(MYSQL *conn, zone_rnum rzone)
   snprintf(sql_buf, sizeof(sql_buf)-1, "DELETE FROM %s.%s WHERE Vnum >= ? AND VNUM < ?", MYSQL_DB, MYSQL_ROOM_DIR_TABLE);
 
   log("MYSQLINFO: %s", sql_buf);
-
   log("%d", num_parameters);
 
   /* zone number */
@@ -440,53 +421,35 @@ int save_room_exits_mysql(MYSQL *conn, zone_rnum rzone)
   struct mysql_column_bind_adapter *col = &room_dir_table_index[0];
   char sql_buf[MAX_STRING_LENGTH];
   char value_buf[MAX_STRING_LENGTH] = "\0";
-  char col_buf[MAX_STRING_LENGTH] = "\0";
-  char buf[MAX_STRING_LENGTH];
+  char buf[MAX_STRING_LENGTH] = "\0";
   char buf1[MAX_STRING_LENGTH];
   struct mysql_parameter_bind_adapter *parameters;
-  int num_parameters = 0, num_columns = 0, col_num, i = 0, j = 0, dflag;
+  int num_parameters = 0, num_columns = 0, num_rows = 0, col_num, i = 0, j = 0, dflag;
   struct room_data *room;
 
-  i = 0;
-  while(*col[i].column_name != '\n')
-  {
-    strncat(col_buf, col[i].column_name, sizeof(col_buf)-1);
-    i++;
-    if(*col[i].column_name != '\n')
-      strncat(col_buf, ", ", sizeof(col_buf)-1);
-  }
-  num_columns = i;
+  num_columns = get_column_sql(buf, sizeof(buf), &room_dir_table_index);
 
-  int needs_comma = 0;
   for (i = genolc_zone_bottom(rzone); i <= zone_table[rzone].top; i++)
   {
     room_rnum r_num;
-
-    if((r_num = real_room(i)) != NOWHERE)
+    
+    if((r_num = real_room(i)) != NOWHERE) 
     {
       room = (world + r_num);
 
       for(j = 0; j < DIR_COUNT; j++) {
-
-        if (R_EXIT(room, j)) {
-          if(needs_comma) {
-            strncat(value_buf, ", ", sizeof(value_buf)-1);
-            needs_comma = 0;
-          }
-          strncat(value_buf, " (?,?,?,?,?,?,?)", sizeof(value_buf)-1);
-          if((i+1) <= zone_table[rzone].top)
-            needs_comma = 1;
-          num_parameters += num_columns;
-        }
+        if (R_EXIT(room, j)) 
+          num_rows++;
       }
     }
   }
 
+  num_parameters = get_parameter_markers_sql(value_buf, sizeof(value_buf), num_columns, num_rows);
+
   snprintf(sql_buf, sizeof(sql_buf)-1, "INSERT INTO %s.%s (%s) VALUES %s",
-     MYSQL_DB, MYSQL_ROOM_DIR_TABLE, col_buf, value_buf);
+     MYSQL_DB, MYSQL_ROOM_DIR_TABLE, buf, value_buf);
 
   log("MYSQLINFO: %s", sql_buf);
-
   log("MYSQLINFO: parameters: %d", num_parameters);
 
   CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);

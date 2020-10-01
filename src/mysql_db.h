@@ -4,12 +4,6 @@
 #include <mysql.h>
 
 void get_mysql_database_conn();
-/*
-#define MYSQL_QUERY_SELECT 1
-#define MYSQL_QUERY_UPDATE 2
-#define MYSQL_QUERY_DELETE 3
-#define MYSQL_QUERY_INSERT 4
-*/
 
 typedef enum
 {
@@ -19,8 +13,10 @@ typedef enum
   MYSQL_QUERY_INSERT
 } MySqlQueryType;
 
+#define MYSQL_PLAYER_TABLE "playerfile"
 #define MYSQL_ALIAS_TABLE "player_alias"
 #define MYSQL_PLAYER_OBJECTS_TABLE "player_objects"
+#define MYSQL_PLAYER_ARRAYS_TABLE "player_arrays"
 //dg trigger variables saved
 #define MYSQL_PLAYER_VARS_TABLE "player_vars"
 
@@ -68,14 +64,16 @@ struct mysql_bind_column {
   unsigned long buffer_length;
 };
 
-int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameters, struct mysql_column_bind_adapter *columns,
+int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameters, const struct mysql_column_bind_adapter *columns,
   char *statement, int num_columns, int num_parameters,
   void (*load_function)(struct mysql_bind_column *, int, int, void *, MYSQL_STMT *stmt),
   void *ch, int querytype);
 int test_error(MYSQL *mysql, int status);
 int test_stmt_error(MYSQL_STMT *stmt, int status);
 void free_mysql_bind_adapter_parameters(struct mysql_parameter_bind_adapter *p, int num_parameters);
-
+int get_column_sql(char *buf, size_t buf_size, const struct mysql_column_bind_adapter *cb);
+int get_column_update_sql(char *buf, size_t buf_size, const struct mysql_column_bind_adapter *cb);
+int get_parameter_markers_sql(char *buf, size_t buf_size, int num_columns, int num_rows);
 
 /* global database connection - might end up removing this global connection
    originally had the idea that one connection could be used instead of repeated connections,

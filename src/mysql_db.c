@@ -25,6 +25,82 @@ void free_mysql_bind_adapter_parameters(struct mysql_parameter_bind_adapter *p, 
   free(p);
 }
 
+/*
+   *buf should be initialized with '\0' or generally 'SELECT ' or the first part of the
+     sql statement
+   *cb should contain a pointer to the mysql_column_bind_adapter with the column names with the final
+     row containing '\n'
+   creates the list of column names delimited by commas (except the last one) as required
+     in a select, or insert (not UPDATE) statement
+   returns the number of columns and appends buf with the sql
+*/
+int get_column_sql(char *buf, size_t buf_size, const struct mysql_column_bind_adapter *cb)
+{
+  int i = 0;
+
+  while(*cb[i].column_name != '\n')
+  {
+    strncat(buf, cb[i].column_name, buf_size - 1);
+    if(*cb[i+1].column_name != '\n')
+      strncat(buf, ", ", buf_size);
+    i++;
+  }
+  return i;
+}
+
+/*
+   *buf should be initialized with '\0' or generally 'UPDATE db.table SET ' or the first part of the
+     sql statement
+   *cb should contain a pointer to the mysql_column_bind_adapter with the column names with the final
+     row containing '\n'
+   creates the list of  set column names delimited by commas in addition to parameter markers
+     (except the last one) as required
+     in an update statement in the form colname = ?, colname2 = ? ...  
+   returns the number of columns and appends buf with the sql
+*/
+int get_column_update_sql(char *buf, size_t buf_size, const struct mysql_column_bind_adapter *cb)
+{
+  int i = 0;
+
+  while(*cb[i].column_name != '\n')
+  {
+    strncat(buf, cb[i].column_name, buf_size - 1);
+    if(*cb[i+1].column_name != '\n')
+      strncat(buf, "= ?, ", buf_size);
+    else
+      strncat(buf, "= ? ", buf_size);
+    i++;
+  }
+  return i;
+}
+/*
+   creates parameter markers in the form (?,?,?,?), (?,?,?,?), (?,?,?,?)
+     where num_columns determines the numbers of ? markers in each parenthesis and
+     num_rows determines the numbers of parenthetical groupings.
+   returns the total number of parameter markers and appends buf with the marker sql
+*/
+int get_parameter_markers_sql(char *buf, size_t buf_size, int num_columns, int num_rows)
+{
+  int i, j, num_parameters = 0;
+
+  for(i = 0; i < num_rows; i++)
+  {
+    strncat(buf, " (", buf_size-1);
+    for(j = 0; j < num_columns; j++)
+    {     
+      strncat(buf, "?", buf_size-1);
+      if(j!= (num_columns-1))
+        strncat(buf, ", ", buf_size-1);
+    }
+    strncat(buf, ")", buf_size-1);
+    if(i != (num_rows-1))
+      strncat(buf, ", ", buf_size-1);
+    num_parameters += num_columns;
+  } 
+  return num_parameters;
+}
+
+
 /*  for assigning column definitions to a parameter list in an insert or update statement */
 //void assign_mysql_bind_adapter_bind_parameters(struct mysql_parameters_bind_adapter *p, 
 //  struct mysql_column_bind_adapter *col, int num_parameters)
@@ -38,26 +114,6 @@ void free_mysql_bind_adapter_parameters(struct mysql_parameter_bind_adapter *p, 
 //    p[i].data_type = *col[i].data_type;
 //  }
 //}
-
-//call free on the return value to release memory
-char* value_mysql_parameter_string(int num_columns, int num_rows)
-{
-  char buf[MAX_STRING_LENGTH];
-  int i, j;
-
-  for(i = 0; i < num_columns; i++)
-  {
-    strncat(buf, "(", sizeof(buf)-1);
-    for(j = 0; j < num_rows; j++)
-    {
-      snprintf(buf, sizeof(buf)-1,  "%s%s", buf, (j < num_rows-1) ? "," : "");
-//      if(j < num_rows-1)
-//        strncat(buf, "?,", sizeof(buf)-1);
-    }
-    snprintf(buf, sizeof(buf-1), "%s)%s", buf, (i < num_columns-1) ? "," : "");
-  }
-  return strdup(buf);
-}
 
 /* should close the mysql connection and log an error */
 void close_mysqlcon_with_error(MYSQL *conn)
@@ -92,7 +148,7 @@ MYSQL *create_conn_to_mud_database(MYSQL *conn)
   return conn;
 }
 
-int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameters, struct mysql_column_bind_adapter *columns,
+int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameters, const struct mysql_column_bind_adapter *columns,
   char *statement, int num_columns, int num_parameters,
   void (*load_function)(struct mysql_bind_column *, int, int, void *, MYSQL_STMT *stmt),
   void *ch, int querytype)
@@ -112,7 +168,6 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
     log("MYSQLINFO: Could not initialize statement\n");
     return -1;
   }
-  log("MYSQLINFO: Initialized statement");
 
   /* prepare the statement */
   status = mysql_stmt_prepare(stmt, statement, strlen(statement));
@@ -130,7 +185,7 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
       param_bind[i].buffer = (char *) parameters[i].string_data;
       param_bind[i].buffer_length = strlen(parameters[i].string_data)+1;
       param_bind[i].is_null = 0;
-      param_bind[i].length = &parameters[i].data_length;
+      param_bind[i].length = (long unsigned *)&parameters[i].data_length;
     }
     else
     {
@@ -150,17 +205,16 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
     if(parameters[i].data_type == MYSQL_TYPE_VAR_STRING)
     {
       parameters[i].data_length = strlen(parameters[i].string_data);
-      log("MYSQLINFO: Parameter %-3d(string): %s, string_length: %d", i, parameters[i].string_data,
-              (strlen(parameters[i].string_data)+1));
+      //log("MYSQLINFO: Parameter %-3d(string): %s, string_length: %d", i, parameters[i].string_data,
+      //        (strlen(parameters[i].string_data)+1));
     }
     else
     {
-      log("MYSQLINFO: Parameter %-3d(int) datatype: %ld, int_data: %d", i, parameters[i].data_type, parameters[i].int_data); 
+      //log("MYSQLINFO: Parameter %-3d(int) datatype: %ld, int_data: %d", i, parameters[i].data_type, parameters[i].int_data); 
     }
   }
   
   /* execute the statement now that it has its parameters defined */
-  log("MYSQLINFO: stmt executing");
   status = mysql_stmt_execute(stmt); 
   test_stmt_error(stmt, status);
   
@@ -172,7 +226,7 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
     */
     for(i = 0; i < num_columns; i++)
     {
-      log("MYSQLINFO: Field - %s %s",columns[i].column_name, columns[i].data_type == MYSQL_TYPE_VAR_STRING ? "string": "not string");
+      //log("MYSQLINFO: Field - %s %s",columns[i].column_name, columns[i].data_type == MYSQL_TYPE_VAR_STRING ? "string": "not string");
 
       /* store our column_name in our col_value structure (since it is not available in the bind data) */
       strcpy(col_values[i].name, columns[i].column_name);
@@ -193,7 +247,6 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
       col_bind[i].is_null=(&col_values[i].is_null);
     }
     
-    log("MYSQLINFO: binding resultset columns");
     /* now actually bind the result values of the query to col_bind which also fills col_values */
     if (mysql_stmt_bind_result(stmt, col_bind))
     {
@@ -222,7 +275,6 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameter
     /* mysql_error(mysql) rather than mysql_stmt_error(stmt) */
     test_error(conn, status);
   }
-  log("MYSQLINFO: stmt closed");
   return 1;
 }
 
