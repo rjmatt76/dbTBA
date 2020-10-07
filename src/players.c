@@ -42,6 +42,8 @@ void read_player_vars_from_mysql(struct mysql_bind_column *fields, int num_field
 void read_player_arrays_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, void *v_ch, MYSQL_STMT *stmt);
 void load_playerfile_index_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, void *v_ch, MYSQL_STMT *stmt);
 void select_player_arrays_mysql(MYSQL *conn, struct char_data *ch, int type);
+void select_player_vars_mysql(MYSQL *conn, struct char_data *ch);
+void insert_player_arrays_mysql(MYSQL *conn, struct char_data *ch, int type);
 
 void get_mysql_database_conn()
 {
@@ -118,7 +120,6 @@ void load_playerfile_index_from_mysql(struct mysql_bind_column *fields, int num_
 {
   int i, row;
   row = 0;
-  struct char_data *ch = v_ch;
 
   CREATE(player_table, struct player_index_element, num_rows);
 
@@ -368,9 +369,10 @@ cpp_extern const struct mysql_column_bind_adapter playerfile_table[] =
   { "\n",             MYSQL_TYPE_LONG     }
 };
 
-void load_playerfile_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, struct char_data *ch, MYSQL_STMT *stmt)
+void load_playerfile_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, void *v_ch, MYSQL_STMT *stmt)
 {    
   int i;
+  struct char_data *ch = v_ch;
 
   if (mysql_stmt_fetch(stmt))
    return;
@@ -698,7 +700,7 @@ int select_player_from_mysql_by_name(MYSQL *conn, const char *name, struct char_
   num_columns = get_column_sql(buf, sizeof(buf), playerfile_table);
 
   snprintf(sql_buf, sizeof(sql_buf) - 1, "%s FROM %s.%s WHERE Name = ?", buf,  MYSQL_DB, MYSQL_PLAYER_TABLE);
-  log(sql_buf);
+  log("MYSQLINFO: %s", sql_buf);
     
   num_parameters = 1;
   //create a parameter list (which is just the character's name here)
@@ -721,8 +723,6 @@ int select_player_from_mysql_by_name(MYSQL *conn, const char *name, struct char_
 int load_char(const char *name, struct char_data *ch)
 {
   int id, i;
-  trig_data *t = NULL;
-  trig_rnum t_rnum = NOTHING;
 
   if ((id = get_ptable_by_name(name)) < 0)
     return (-1);
@@ -903,10 +903,9 @@ void save_char_mysql(struct char_data * ch, struct affected_type *aff)
 /* This is the ASCII Player Files save routine. */
 void save_char(struct char_data * ch)
 {
-  int i, j, id, save_index = FALSE;
+  int i, j;
   struct affected_type *aff; 
   struct obj_data *char_eq[NUM_WEARS];
-  trig_data *t;
 
   if (IS_NPC(ch) || GET_PFILEPOS(ch) < 0)
     return;
@@ -1084,7 +1083,7 @@ void clean_pfiles(void)
       /* If the player is already flagged for deletion, then go ahead and get
        * rid of him. */
       if (IS_SET(player_table[i].flags, PINDEX_DELETED)) {
-	(i);
+	remove_player(i);
       } else {
         /* Check to see if the player has overstayed his welcome based on level. */
 	for (ci = 0; pclean_criteria[ci].level > -1; ci++) {
@@ -1184,8 +1183,6 @@ void delete_player_arrays_mysql(MYSQL *conn, struct char_data *ch, int type)
 /* save a character's variables to the database */
 void insert_player_arrays_mysql(MYSQL *conn, struct char_data *ch, int type)
 {
-  struct trig_var_data *vars;
-  int count = 0;
   char sql_buf[MAX_STRING_LENGTH];
   char value_buf[MAX_STRING_LENGTH] = "\0";
   char buf[MAX_STRING_LENGTH] = "\0";
@@ -1335,7 +1332,7 @@ void select_player_arrays_mysql(MYSQL *conn, struct char_data *ch, int type)
 
   snprintf(sql_buf, sizeof(sql_buf) - 1, "%s FROM %s.%s WHERE PlayerId = ? AND Type = ?", 
     buf,  MYSQL_DB, MYSQL_PLAYER_ARRAYS_TABLE);
-  log(sql_buf);
+  log("MYSQLINFO: %s", sql_buf);
 
   num_parameters = 2;
 
@@ -1433,7 +1430,6 @@ void delete_player_vars_mysql(MYSQL *conn, struct char_data *ch)
 void insert_player_vars_mysql(MYSQL *conn, struct char_data *ch)
 {
   struct trig_var_data *vars;
-  int count = 0;
   char sql_buf[MAX_STRING_LENGTH];
   char value_buf[MAX_STRING_LENGTH] = "\0";
   char buf[MAX_STRING_LENGTH] = "\0";
@@ -1509,7 +1505,7 @@ void insert_player_vars_mysql(MYSQL *conn, struct char_data *ch)
 
 void select_player_vars_mysql(MYSQL *conn, struct char_data *ch)
 {
-  int i, num_parameters, num_columns;
+  int num_parameters, num_columns;
   char sql_buf[MAX_STRING_LENGTH];
   char buf[MAX_STRING_LENGTH];
   const struct mysql_column_bind_adapter *pvt = player_vars_table_index;
@@ -1519,7 +1515,7 @@ void select_player_vars_mysql(MYSQL *conn, struct char_data *ch)
   num_columns = get_column_sql(buf, sizeof(buf), player_vars_table_index);
 
   snprintf(sql_buf, sizeof(sql_buf) - 1, "%s FROM %s.%s WHERE PlayerID = ?", buf,  MYSQL_DB, MYSQL_PLAYER_VARS_TABLE);
-  log(sql_buf);
+  log("MYSQLINFO: %s", sql_buf);
 
   num_parameters = 1;
 
@@ -1539,7 +1535,7 @@ void read_player_vars_from_mysql(struct mysql_bind_column *fields, int num_field
 {
   int i, context;
   char buf[MAX_STRING_LENGTH];
-  char *varname, *value;
+  char *varname = NULL, *value = NULL;
   struct char_data *ch = v_ch;
 
   /* If getting to the menu from inside the game, the vars aren't removed. So 
@@ -1579,7 +1575,9 @@ void read_player_vars_from_mysql(struct mysql_bind_column *fields, int num_field
       else if (!strcmp(fields[i].name, "Context"))  context = fields[i].col_int_buffer;
     }
     add_var(&(SCRIPT(ch)->global_vars), varname, value, context);
-    free(varname);
+    if(varname)
+      free(varname);
+    if(value)
     free(value);
   }
 }
