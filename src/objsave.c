@@ -78,9 +78,7 @@ void delete_player_objects_mysql(MYSQL *conn, struct char_data *ch)
 
   log("MYSQLINFO: %s", sql_buf);
 
-  //include the ID
-  log("%d", num_parameters);
-  //create a parameter list (which is just the character's name here)
+  //create a parameter list (which is just the character's id here)
   CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
   parameters[0].data_length = 0;
   parameters[0].data_type = MYSQL_TYPE_LONG;
@@ -96,41 +94,52 @@ void insert_player_objects_mysql(MYSQL *conn, struct char_data *ch)
 {
   char sql_buf[MAX_STRING_LENGTH];
   char value_buf[MAX_STRING_LENGTH] = "\0";
-  char col_buf[MAX_STRING_LENGTH] = "\0";
-  char buf[MAX_STRING_LENGTH];
+  char buf[MAX_STRING_LENGTH] = "\0";
   struct mysql_parameter_bind_adapter *parameters;
-  int num_parameters = 0, num_columns = 0, col_num, i = 0, j;
-  struct mysql_column_bind_adapter *col = &player_objects_table_index;
-  struct alias_data *temp;
+  int num_parameters = 0, num_rows = 0, num_columns = 0, i = 0, j;
+  struct obj_data *obj = NULL;
 
-  i = 0;
-  while(*col[i].column_name != '\n')
-  {
-    strncat(col_buf, col[i].column_name, sizeof(col_buf)-1);
-    i++;
-    if(*col[i].column_name != '\n')
-      strncat(col_buf, ", ", sizeof(col_buf)-1);
-  }
-  num_columns = i;
+  num_columns = get_column_sql(buf, sizeof(buf), player_objects_table_index);
 
-  int needs_comma = 0;
   for (j = 0; j < NUM_WEARS; j++) {
     if (GET_EQ(ch, j) == NULL)
       continue;
 
-    if(needs_comma)
-    {
-      strncat(value_buf, ", ", sizeof(value_buf)-1);
-      needs_comma = 0;
-    }
-    strncat(value_buf, " (?,?,?,?,?)", sizeof(value_buf)-1);
-    needs_comma = 1;
-    num_parameters += num_columns;
+    num_rows++;
   }
+
+  obj = ch->carrying;
+  while (obj)
+  { 
+    //process obj
+
+    //if obj is a container and obj->contains go down obj=obj->contains
+      //processing_container=1
+    //else if container is empty obj->next_content
+    //else (it is a normal obj) obj->next_content 
+    
+    num_rows++;
+    if(obj->contains) {
+      obj = obj->contains;
+      num_rows++;
+      continue;
+    }
+    if(!obj->next_content)
+      while(obj->in_obj)
+      {
+        obj = obj->in_obj;
+        if(obj->next_content)
+          break;
+      }     
+    obj = obj->next_content; 
+  }
+
+  num_parameters = get_parameter_markers_sql(value_buf, sizeof(value_buf), num_columns, num_rows);
+
   delete_player_objects_mysql(conn, ch);
 
   snprintf(sql_buf, sizeof(sql_buf)-1, "INSERT INTO %s.%s (%s) VALUES %s",
-    MYSQL_DB, MYSQL_PLAYER_OBJECTS_TABLE, col_buf, value_buf);
+    MYSQL_DB, MYSQL_PLAYER_OBJECTS_TABLE, buf, value_buf);
 
   log("MYSQLINFO: %s", sql_buf);
  
@@ -138,43 +147,103 @@ void insert_player_objects_mysql(MYSQL *conn, struct char_data *ch)
 
   CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
 
+  int row = 0;
   for (j = 0; j < NUM_WEARS; j++) {
-    if (GET_EQ(ch, j) == NULL)
+    if (GET_EQ(ch, j) == NULL) {
       continue;
-
-    for(i = 0; i < num_parameters; i++)
-    {
-      col_num = i % num_columns;
-
-      parameters[i].data_type = col[col_num].data_type;
-
-      if(!strcmp(col[col_num].column_name, "PlayerId"))
-        parameters[i].int_data = GET_IDNUM(ch);
-      else if(!strcmp(col[col_num].column_name, "Vnum"))
-        parameters[i].int_data = GET_OBJ_VNUM(GET_EQ(ch, j));
-      else if(!strcmp(col[col_num].column_name, "Loc"))
-        parameters[i].int_data = j;
-      else if(!strcmp(col[col_num].column_name, "Name"))
-      {
-        parameters[i].string_data = strdup(GET_EQ(ch, j)->name);
-      }
-      else if(!strcmp(col[col_num].column_name, "Shrt"))
-        parameters[i].string_data = strdup(GET_EQ(ch, j)->short_description);
-
-      if(parameters[i].data_type == MYSQL_TYPE_VAR_STRING && parameters[i].string_data)
-          parameters[i].data_length = strlen(parameters[i].string_data);
-      else 
-          parameters[i].data_length = 0;
-
-      if(col_num == (num_columns - 1))
-        break;
     }
+    player_object_mysql_parameter(&parameters[row*num_columns], GET_IDNUM(ch), j, num_columns, GET_EQ(ch, j));
+    row++;
+  }
+
+  int in_container = 0;
+  for (obj = ch->carrying; obj; obj = obj->next_content)
+  {  
+    struct obj_data *current_container = NULL;
+
+    if(obj->contains) {
+      in_container++;
+      player_object_mysql_parameter(&parameters[row*num_columns], GET_IDNUM(ch), 0, num_columns, obj);
+      obj = obj->contains;
+      row++;
+    } else {
+      player_object_mysql_parameter(&parameters[row*num_columns], GET_IDNUM(ch), 0, num_columns, obj);
+      row++;
+    }
+
+    if(!obj->next_content)
+      while(obj->in_obj)
+      {
+        obj = obj->in_obj;
+        //if(obj->next_content)
+        //break;
+      }      
   }
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_INSERT);
 
   free_mysql_bind_adapter_parameters(parameters, num_parameters);
 }
 
+/*
+static int x_Crash_save(struct obj_data *obj, FILE *fp, int location)
+{
+  struct obj_data *tmp;
+  int result;
+
+  if (obj) {
+    Crash_save(obj->next_content, fp, location);
+    Crash_save(obj->contains, fp, MIN(0, location) - 1);
+
+    player_object_mysql_parameter(&parameters[row*num_columns], GET_IDNUM(ch), j, num_columns, GET_EQ(ch, j));
+    //result = objsave_save_obj_record(obj, fp, location);
+
+    for (tmp = obj->in_obj; tmp; tmp = tmp->in_obj)
+      GET_OBJ_WEIGHT(tmp) -= GET_OBJ_WEIGHT(obj);
+
+    if (!result)
+      return FALSE;
+  }
+  return (TRUE);
+}
+*/
+/*
+  if(obj->contains)
+    return functioncall(obj->contains, ++count);
+  else
+    return count;
+*/
+
+/* loads a row of data (or one obj) 
+   parameters should point to the starting parameter for the particular row of data
+   num_columns specifies how many parameters are in the row
+*/
+void player_object_mysql_parameter(struct mysql_parameter_bind_adapter *parameters, int id, int loc, int num_columns, struct obj_data *obj)
+{
+  const struct mysql_column_bind_adapter *col = player_objects_table_index;
+
+  for(int i = 0; i < num_columns; i++)
+  {
+    parameters[i].data_type = col[i].data_type;
+
+    if(!strcmp(col[i].column_name, "PlayerId"))
+      parameters[i].int_data = id;
+    else if(!strcmp(col[i].column_name, "Vnum"))
+      parameters[i].int_data = GET_OBJ_VNUM(obj);
+    else if(!strcmp(col[i].column_name, "Loc"))
+      parameters[i].int_data = loc;
+    else if(!strcmp(col[i].column_name, "Name"))
+    {
+      parameters[i].string_data = strdup(obj->name);
+    }
+    else if(!strcmp(col[i].column_name, "Shrt"))
+      parameters[i].string_data = strdup(obj->short_description);
+
+    if(parameters[i].data_type == MYSQL_TYPE_VAR_STRING && parameters[i].string_data)
+      parameters[i].data_length = strlen(parameters[i].string_data);
+    else 
+      parameters[i].data_length = 0;
+  }
+}
 
 /* Writes one object record to FILE.  Old name: Obj_to_store() */
 int objsave_save_obj_record(struct obj_data *obj, FILE *fp, int locate)
@@ -698,15 +767,15 @@ void Crash_crashsave(struct char_data *ch)
   if (!objsave_write_rentcode(fp, RENT_CRASH, 0, ch))
   	return;
 
-  MYSQL *conn = NULL;
-
+  //MYSQL *conn = NULL;
+/*
   if((conn = create_conn_to_mud_database(conn)) == NULL)
   {
     log("MYSQLINFO: Error connecting to database");
     return -1;
   }
-
-  insert_player_objects_mysql(conn, ch);
+*/
+  //TODO: insert_player_objects_mysql(conn, ch);
 
   for (j = 0; j < NUM_WEARS; j++)
     if (GET_EQ(ch, j)) {

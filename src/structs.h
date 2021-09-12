@@ -652,7 +652,8 @@ typedef IDXTYPE qst_rnum;   /**< references an instance of a quest */
  * will give you at least 64 bits if you have GCC. You'll have to search
  * throughout the code for "bitvector_t" and change them yourself if you'd
  * like this extra flexibility. */
-typedef unsigned long int bitvector_t;
+//typedef unsigned long int bitvector_t;
+typedef uint32_t bitvector_t;
 
 /** Extra description: used in objects, mobiles, and rooms. For example,
  * a 'look hair' might pull up an extra description (if available) for

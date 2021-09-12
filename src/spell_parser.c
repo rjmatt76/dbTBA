@@ -740,7 +740,7 @@ void mag_assign_spells(void)
 	TAR_OBJ_ROOM, FALSE, MAG_SUMMONS,
 	NULL);
 
-  spello(SPELL_ARMOR, "armor", 30, 15, 3, 1, POS_FIGHTING,
+  spello(SPELL_ARMOR, "armor", 30, 15, 3, 22, POS_FIGHTING,
 	TAR_CHAR_ROOM, FALSE, MAG_AFFECTS,
 	"You feel less protected.");
 

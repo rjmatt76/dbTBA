@@ -467,11 +467,11 @@ void update_playerfile_to_mysql_by_ID(MYSQL *conn, int ID, struct char_data *ch,
   num_columns = get_column_update_sql(buf, sizeof(buf)-1, playerfile_table);
   
   strncat(buf, " WHERE ID = ?", sizeof(buf) - 1);
-  log("MYSQLINFO: %s", buf);
+//  log("MYSQLINFO: %s", buf);
 
   //include the ID
   num_parameters = (num_columns + 1);
-  log("%d", num_parameters);
+  log("MYSQLINFO: %s | num_parameter:%d", buf, num_parameters);
   //create a parameter list (which is just the character's name here)
   CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
 
@@ -676,8 +676,7 @@ void update_playerfile_to_mysql_by_ID(MYSQL *conn, int ID, struct char_data *ch,
     else 
         parameters[i].data_length = 0;
   }
-  log("MYSQLINFO: Num Parameters: %d", num_parameters);
-  log("MYSQLINFO: Updating Player");
+
   query_stmt_mysql(conn, parameters, NULL, buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_UPDATE);
   
   for(i = 0; i < num_parameters; i++)
@@ -783,7 +782,7 @@ int load_char(const char *name, struct char_data *ch)
     for (i = 0; i < AF_ARRAY_MAX; i++)
       AFF_FLAGS(ch)[i] = PFDEF_AFFFLAGS;
     for (i = 0; i < PM_ARRAY_MAX; i++)
-      PLR_FLAGS(ch)[i] = PFDEF_PLRFLAGS;
+     PLR_FLAGS(ch)[i] = PFDEF_PLRFLAGS;
     for (i = 0; i < PR_ARRAY_MAX; i++)
       PRF_FLAGS(ch)[i] = PFDEF_PREFFLAGS;
 
@@ -896,7 +895,9 @@ void save_char_mysql(struct char_data * ch, struct affected_type *aff)
   insert_player_arrays_mysql(conn, ch, PLAYER_ARRAY_SKILLS);
   insert_player_arrays_mysql(conn, ch, PLAYER_ARRAY_QUESTS);
   insert_player_arrays_mysql(conn, ch, PLAYER_ARRAY_COOLDOWNS);
-  
+
+  mysql_free_result(result);
+  mysql_close(conn);
 }
 
 /* Write the vital data of a player to the player file. */
@@ -1161,10 +1162,8 @@ void delete_player_arrays_mysql(MYSQL *conn, struct char_data *ch, int type)
 
   snprintf(sql_buf, sizeof(sql_buf)-1, "DELETE FROM %s.%s WHERE PlayerId = ? AND Type = ?", MYSQL_DB, MYSQL_PLAYER_ARRAYS_TABLE);
 
-  log("MYSQLINFO: %s", sql_buf);
+  log("MYSQLINFO: %s | num_parameters:%d", sql_buf, num_parameters);
 
-  //include the ID
-  log("MYSQLINFO: Num Parameters: %d", num_parameters);
   //create a parameter list (which is just the character's name here)
   CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
   parameters[0].data_length = 0;
@@ -1228,8 +1227,7 @@ void insert_player_arrays_mysql(MYSQL *conn, struct char_data *ch, int type)
   snprintf(sql_buf, sizeof(sql_buf)-1, "INSERT INTO %s.%s (%s) VALUES %s",
     MYSQL_DB, MYSQL_PLAYER_ARRAYS_TABLE, buf, value_buf);
 
-  log("MYSQLINFO: %s", sql_buf);
-  log("MYSQLINFO: Num Parameters: %d", num_parameters);
+  log("MYSQLINFO: %s | num_parameter:%d", sql_buf, num_parameters);
 
   CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
 
@@ -1411,10 +1409,9 @@ void delete_player_vars_mysql(MYSQL *conn, struct char_data *ch)
 
   snprintf(sql_buf, sizeof(sql_buf)-1, "DELETE FROM %s.%s WHERE PlayerId = ?", MYSQL_DB, MYSQL_PLAYER_VARS_TABLE);
 
-  log("MYSQLINFO: %s", sql_buf);
+  log("MYSQLINFO: %s | num_parameter:%d", sql_buf, num_parameters);
 
   //include the ID
-  log("MYSQLINFO: Num Parameters: %d", num_parameters);
   //create a parameter list (which is just the character's name here)
   CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
   parameters[0].data_length = 0;
@@ -1464,8 +1461,7 @@ void insert_player_vars_mysql(MYSQL *conn, struct char_data *ch)
   snprintf(sql_buf, sizeof(sql_buf)-1, "INSERT INTO %s.%s (%s) VALUES %s",
     MYSQL_DB, MYSQL_PLAYER_VARS_TABLE, buf, value_buf);
 
-  log("MYSQLINFO: %s", sql_buf);
-  log("MYSQLINFO: Num Parameters: %d", num_parameters);
+  log("MYSQLINFO: %s | num_parameters:%d", sql_buf, num_parameters);
 
   CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
 
@@ -1600,10 +1596,9 @@ void delete_aliases_mysql(MYSQL *conn, struct char_data *ch)
 
   snprintf(sql_buf, sizeof(sql_buf)-1, "DELETE FROM %s.%s WHERE PlayerId = ?", MYSQL_DB, MYSQL_ALIAS_TABLE);
 
-  log("MYSQLINFO: %s", sql_buf);
+  log("MYSQLINFO: %s | num_parameters:%d", sql_buf, num_parameters);
 
   //include the ID
-  log("MYSQLINFO: Num Parameters: %d", num_parameters);
   //create a parameter list (which is just the character's name here)
   CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
   parameters[0].data_length = 0;
@@ -1640,8 +1635,7 @@ static void insert_aliases_mysql(MYSQL *conn, struct char_data *ch)
   snprintf(sql_buf, sizeof(sql_buf)-1, "INSERT INTO %s.%s (%s) VALUES %s",
     MYSQL_DB, MYSQL_ALIAS_TABLE, buf, value_buf);
 
-  log("MYSQLINFO: %s", sql_buf);
-  log("MYSQLINFO: Num Parameters: %d", num_parameters);
+  log("MYSQLINFO: %s | num_parameters:%d", sql_buf, num_parameters);
 
   CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
 

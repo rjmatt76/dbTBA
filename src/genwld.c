@@ -383,7 +383,7 @@ int save_rooms_mysql(MYSQL *conn, zone_rnum rzone)
       }
     }
   }
-  delete_rooms_mysql(conn, zone_table[room->zone].number);
+/*  delete_rooms_mysql(conn, zone_table[room->zone].number);*/
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, NULL, MYSQL_QUERY_INSERT);
 
   free_mysql_bind_adapter_parameters(parameters, num_parameters);
