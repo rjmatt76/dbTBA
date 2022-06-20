@@ -261,7 +261,7 @@ int delete_room(room_rnum rnum)
   return TRUE;
 }
 
-cpp_extern const struct mysql_column_bind_adapter room_table_index[] =
+cpp_extern const struct mysql_column room_table_index[] =
 {
   { "Vnum",           MYSQL_TYPE_LONG           },
   { "Zone",           MYSQL_TYPE_LONG           },
@@ -275,7 +275,7 @@ cpp_extern const struct mysql_column_bind_adapter room_table_index[] =
   { "\n",             MYSQL_TYPE_LONG           }
 };
 
-cpp_extern const struct mysql_column_bind_adapter room_dir_table_index[] =
+cpp_extern const struct mysql_column room_dir_table_index[] =
 {
   { "Vnum",           MYSQL_TYPE_LONG           },
   { "DirectionNum",   MYSQL_TYPE_LONG           },
@@ -290,7 +290,7 @@ cpp_extern const struct mysql_column_bind_adapter room_dir_table_index[] =
 void delete_rooms_mysql(MYSQL *conn, zone_rnum rzone)
 {
   char sql_buf[MAX_STRING_LENGTH];
-  struct mysql_parameter_bind_adapter *parameters;
+  struct mysql_parameter *parameters;
   int num_parameters = 1;
 
   snprintf(sql_buf, sizeof(sql_buf)-1, "DELETE FROM %s.%s WHERE Zone = ?", MYSQL_DB, MYSQL_ROOM_TABLE);
@@ -299,7 +299,7 @@ void delete_rooms_mysql(MYSQL *conn, zone_rnum rzone)
   log("%d", num_parameters);
 
   /* zone number */
-  CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
+  CREATE(parameters, struct mysql_parameter, num_parameters);
   parameters[0].data_length = 0;
   parameters[0].data_type = MYSQL_TYPE_LONG;
   parameters[0].int_data = rzone;
@@ -311,11 +311,11 @@ void delete_rooms_mysql(MYSQL *conn, zone_rnum rzone)
 
 int save_rooms_mysql(MYSQL *conn, zone_rnum rzone)
 {
-  struct mysql_column_bind_adapter *col = &room_table_index[0];
+  struct mysql_column *col = &room_table_index[0];
   char sql_buf[MAX_STRING_LENGTH];
   char value_buf[MAX_STRING_LENGTH] = "\0";
   char buf[MAX_STRING_LENGTH] = "\0";
-  struct mysql_parameter_bind_adapter *parameters;
+  struct mysql_parameter *parameters;
   int num_parameters = 0, num_columns = 0, col_num, num_rows = 0, i = 0;
   struct room_data *room;
 
@@ -339,7 +339,7 @@ int save_rooms_mysql(MYSQL *conn, zone_rnum rzone)
   log("MYSQLINFO: %s", sql_buf);
   log("MYSQLINFO: parameters: %d", num_parameters);
 
-  CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
+  CREATE(parameters, struct mysql_parameter, num_parameters);
 
   int parameter_index = 0;
   for (parameter_index=0,i = genolc_zone_bottom(rzone); i <= zone_table[rzone].top; i++) {
@@ -392,7 +392,7 @@ int save_rooms_mysql(MYSQL *conn, zone_rnum rzone)
 void delete_exits_mysql(MYSQL *conn, zone_rnum rzone)
 {
   char sql_buf[MAX_STRING_LENGTH];
-  struct mysql_parameter_bind_adapter *parameters;
+  struct mysql_parameter *parameters;
   int num_parameters = 2;
 
   snprintf(sql_buf, sizeof(sql_buf)-1, "DELETE FROM %s.%s WHERE Vnum >= ? AND VNUM < ?", MYSQL_DB, MYSQL_ROOM_DIR_TABLE);
@@ -401,7 +401,7 @@ void delete_exits_mysql(MYSQL *conn, zone_rnum rzone)
   log("%d", num_parameters);
 
   /* zone number */
-  CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
+  CREATE(parameters, struct mysql_parameter, num_parameters);
   parameters[0].data_length = 0;
   parameters[0].data_type = MYSQL_TYPE_LONG;
   parameters[0].int_data = rzone*100;
@@ -418,12 +418,12 @@ void delete_exits_mysql(MYSQL *conn, zone_rnum rzone)
 
 int save_room_exits_mysql(MYSQL *conn, zone_rnum rzone)
 {
-  struct mysql_column_bind_adapter *col = &room_dir_table_index[0];
+  struct mysql_column *col = &room_dir_table_index[0];
   char sql_buf[MAX_STRING_LENGTH];
   char value_buf[MAX_STRING_LENGTH] = "\0";
   char buf[MAX_STRING_LENGTH] = "\0";
   char buf1[MAX_STRING_LENGTH];
-  struct mysql_parameter_bind_adapter *parameters;
+  struct mysql_parameter *parameters;
   int num_parameters = 0, num_columns = 0, num_rows = 0, col_num, i = 0, j = 0, dflag;
   struct room_data *room;
 
@@ -452,7 +452,7 @@ int save_room_exits_mysql(MYSQL *conn, zone_rnum rzone)
   log("MYSQLINFO: %s", sql_buf);
   log("MYSQLINFO: parameters: %d", num_parameters);
 
-  CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
+  CREATE(parameters, struct mysql_parameter, num_parameters);
 
   int parameter_index = 0;
   for (parameter_index=0,i = genolc_zone_bottom(rzone); i <= zone_table[rzone].top; i++) {

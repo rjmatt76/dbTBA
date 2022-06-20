@@ -12,8 +12,10 @@
 #include "interpreter.h"
 #include "mysql_db.h"
 
+MYSQL *database_conn;
+struct mysql_connection_strings mysql_connection_strings;
 
-void free_mysql_bind_adapter_parameters(struct mysql_parameter_bind_adapter *p, int num_parameters)
+void free_mysql_bind_adapter_parameters(struct mysql_parameter *p, int num_parameters)
 {
   int i;
 
@@ -28,13 +30,13 @@ void free_mysql_bind_adapter_parameters(struct mysql_parameter_bind_adapter *p, 
 /*
    *buf should be initialized with '\0' or generally 'SELECT ' or the first part of the
      sql statement
-   *cb should contain a pointer to the mysql_column_bind_adapter with the column names with the final
+   *cb should contain a pointer to the mysql_column with the column names with the final
      row containing '\n'
    creates the list of column names delimited by commas (except the last one) as required
      in a select, or insert (not UPDATE) statement
    returns the number of columns and appends buf with the sql
 */
-int get_column_sql(char *buf, size_t buf_size, const struct mysql_column_bind_adapter *cb)
+int get_column_sql(char *buf, size_t buf_size, const struct mysql_column *cb)
 {
   int i = 0;
 
@@ -51,14 +53,14 @@ int get_column_sql(char *buf, size_t buf_size, const struct mysql_column_bind_ad
 /*
    *buf should be initialized with '\0' or generally 'UPDATE db.table SET ' or the first part of the
      sql statement
-   *cb should contain a pointer to the mysql_column_bind_adapter with the column names with the final
+   *cb should contain a pointer to the mysql_column with the column names with the final
      row containing '\n'
    creates the list of  set column names delimited by commas in addition to parameter markers
      (except the last one) as required
      in an update statement in the form colname = ?, colname2 = ? ...  
    returns the number of columns and appends buf with the sql
 */
-int get_column_update_sql(char *buf, size_t buf_size, const struct mysql_column_bind_adapter *cb)
+int get_column_update_sql(char *buf, size_t buf_size, const struct mysql_column *cb)
 {
   int i = 0;
 
@@ -103,10 +105,10 @@ int get_parameter_markers_sql(char *buf, size_t buf_size, int num_columns, int n
 
 /*  for assigning column definitions to a parameter list in an insert or update statement */
 //void assign_mysql_bind_adapter_bind_parameters(struct mysql_parameters_bind_adapter *p, 
-//  struct mysql_column_bind_adapter *col, int num_parameters)
+//  struct mysql_column *col, int num_parameters)
 //{
 //  int i;
-//  CREATE(p, struct mysql_parameter_bind_adapter, num_parameters);
+//  CREATE(p, struct mysql_parameter, num_parameters);
 
 //  i = 0;
 //  while(*col[i].column_name != '\n')
@@ -148,7 +150,7 @@ MYSQL *create_conn_to_mud_database(MYSQL *conn)
   return conn;
 }
 
-int query_stmt_mysql(MYSQL *conn, struct mysql_parameter_bind_adapter *parameters, const struct mysql_column_bind_adapter *columns,
+int query_stmt_mysql(MYSQL *conn, struct mysql_parameter *parameters, const struct mysql_column *columns,
   char *statement, int num_columns, int num_parameters,
   void (*load_function)(struct mysql_bind_column *, int, int, void *, MYSQL_STMT *stmt),
   void *ch, int querytype)

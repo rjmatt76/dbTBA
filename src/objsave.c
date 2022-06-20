@@ -52,7 +52,7 @@ static int Crash_load_objs(struct char_data *ch);
 static int handle_obj(struct obj_data *obj, struct char_data *ch, int locate, struct obj_data **cont_rows);
 static int objsave_write_rentcode(FILE *fl, int rentcode, int cost_per_day, struct char_data *ch);
 
-cpp_extern struct mysql_column_bind_adapter player_objects_table_index[] =
+cpp_extern struct mysql_column player_objects_table_index[] =
 {
   { "PlayerId",       MYSQL_TYPE_LONG           },
   { "Vnum",           MYSQL_TYPE_LONG           },
@@ -71,7 +71,7 @@ int objsave_save_obj_record_to_mysql(struct obj_data *obj, int locate)
 void delete_player_objects_mysql(MYSQL *conn, struct char_data *ch)
 {
   char sql_buf[MAX_STRING_LENGTH];
-  struct mysql_parameter_bind_adapter *parameters;
+  struct mysql_parameter *parameters;
   int num_parameters = 1;
 
   snprintf(sql_buf, sizeof(sql_buf)-1, "DELETE FROM %s.%s WHERE PlayerId = ?", MYSQL_DB, MYSQL_PLAYER_OBJECTS_TABLE);
@@ -79,7 +79,7 @@ void delete_player_objects_mysql(MYSQL *conn, struct char_data *ch)
   log("MYSQLINFO: %s", sql_buf);
 
   //create a parameter list (which is just the character's id here)
-  CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
+  CREATE(parameters, struct mysql_parameter, num_parameters);
   parameters[0].data_length = 0;
   parameters[0].data_type = MYSQL_TYPE_LONG;
   parameters[0].int_data = GET_IDNUM(ch);
@@ -95,7 +95,7 @@ void insert_player_objects_mysql(MYSQL *conn, struct char_data *ch)
   char sql_buf[MAX_STRING_LENGTH];
   char value_buf[MAX_STRING_LENGTH] = "\0";
   char buf[MAX_STRING_LENGTH] = "\0";
-  struct mysql_parameter_bind_adapter *parameters;
+  struct mysql_parameter *parameters;
   int num_parameters = 0, num_rows = 0, num_columns = 0, i = 0, j;
   struct obj_data *obj = NULL;
 
@@ -145,7 +145,7 @@ void insert_player_objects_mysql(MYSQL *conn, struct char_data *ch)
  
   log("%d", num_parameters);
 
-  CREATE(parameters, struct mysql_parameter_bind_adapter, num_parameters);
+  CREATE(parameters, struct mysql_parameter, num_parameters);
 
   int row = 0;
   for (j = 0; j < NUM_WEARS; j++) {
@@ -217,9 +217,9 @@ static int x_Crash_save(struct obj_data *obj, FILE *fp, int location)
    parameters should point to the starting parameter for the particular row of data
    num_columns specifies how many parameters are in the row
 */
-void player_object_mysql_parameter(struct mysql_parameter_bind_adapter *parameters, int id, int loc, int num_columns, struct obj_data *obj)
+void player_object_mysql_parameter(struct mysql_parameter *parameters, int id, int loc, int num_columns, struct obj_data *obj)
 {
-  const struct mysql_column_bind_adapter *col = player_objects_table_index;
+  const struct mysql_column *col = player_objects_table_index;
 
   for(int i = 0; i < num_columns; i++)
   {
