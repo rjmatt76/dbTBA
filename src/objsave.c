@@ -86,7 +86,7 @@ void delete_player_objects_mysql(MYSQL *conn, struct char_data *ch)
 
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_DELETE);
 
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 
@@ -181,7 +181,7 @@ void insert_player_objects_mysql(MYSQL *conn, struct char_data *ch)
   }
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_INSERT);
 
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 /*

@@ -15,7 +15,7 @@
 MYSQL *database_conn;
 struct mysql_connection_strings mysql_connection_strings;
 
-void free_mysql_bind_adapter_parameters(struct mysql_parameter *p, int num_parameters)
+void free_mysql_parameters(struct mysql_parameter *p, int num_parameters)
 {
   int i;
 
@@ -104,7 +104,7 @@ int get_parameter_markers_sql(char *buf, size_t buf_size, int num_columns, int n
 
 
 /*  for assigning column definitions to a parameter list in an insert or update statement */
-//void assign_mysql_bind_adapter_bind_parameters(struct mysql_parameters_bind_adapter *p, 
+//void assign_mysql_bind_parameters(struct mysql_parameters_bind_adapter *p, 
 //  struct mysql_column *col, int num_parameters)
 //{
 //  int i;

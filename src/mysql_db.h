@@ -70,7 +70,7 @@ int query_stmt_mysql(MYSQL *conn, struct mysql_parameter *parameters, const stru
   void *ch, int querytype);
 int test_error(MYSQL *mysql, int status);
 int test_stmt_error(MYSQL_STMT *stmt, int status);
-void free_mysql_bind_adapter_parameters(struct mysql_parameter *p, int num_parameters);
+void free_mysql_parameters(struct mysql_parameter *p, int num_parameters);
 int get_column_sql(char *buf, size_t buf_size, const struct mysql_column *cb);
 int get_column_update_sql(char *buf, size_t buf_size, const struct mysql_column *cb);
 int get_parameter_markers_sql(char *buf, size_t buf_size, int num_columns, int num_rows);

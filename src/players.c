@@ -171,7 +171,7 @@ int select_player_index_from_mysql(MYSQL *conn)
 
   query_stmt_mysql(conn, parameters, pft, sql_buf, num_columns, num_parameters, load_playerfile_index_from_mysql, NULL, MYSQL_QUERY_SELECT);
 
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
   return 1;
 }
 
@@ -462,12 +462,11 @@ void update_playerfile_to_mysql_by_ID(MYSQL *conn, int ID, struct char_data *ch,
   char buf2[MAX_STRING_LENGTH];
   struct mysql_parameter *parameters;
   
-  snprintf(buf, sizeof(buf)-1, "UPDATE strife_mud.playerfile SET ");
+  snprintf(buf, sizeof(buf)-1, "UPDATE %s.%s SET ", MYSQL_DB, MYSQL_PLAYER_TABLE);
 
   num_columns = get_column_update_sql(buf, sizeof(buf)-1, playerfile_table);
   
   strncat(buf, " WHERE ID = ?", sizeof(buf) - 1);
-//  log("MYSQLINFO: %s", buf);
 
   //include the ID
   num_parameters = (num_columns + 1);
@@ -684,7 +683,7 @@ void update_playerfile_to_mysql_by_ID(MYSQL *conn, int ID, struct char_data *ch,
 //    log("MYSQLINFO: column: %s, Parameter %d, int_data: %d, string_data: %s", playerfile_table[i].column_name,
 //        i, parameters[i].int_data, parameters[i].data_type == MYSQL_TYPE_VAR_STRING ? (char*)parameters[i].string_data : "not string");
   }
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 int select_player_from_mysql_by_name(MYSQL *conn, const char *name, struct char_data *ch)
@@ -711,7 +710,7 @@ int select_player_from_mysql_by_name(MYSQL *conn, const char *name, struct char_
     
   query_stmt_mysql(conn, parameters, pft, sql_buf, num_columns, num_parameters, load_playerfile_from_mysql, ch, MYSQL_QUERY_SELECT);
 
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
   return 1;
 }
 
@@ -1176,7 +1175,7 @@ void delete_player_arrays_mysql(MYSQL *conn, struct char_data *ch, int type)
 
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_DELETE);
 
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 /* save a character's variables to the database */
@@ -1314,7 +1313,7 @@ void insert_player_arrays_mysql(MYSQL *conn, struct char_data *ch, int type)
 
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_INSERT);
 
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 void select_player_arrays_mysql(MYSQL *conn, struct char_data *ch, int type)
@@ -1347,7 +1346,7 @@ void select_player_arrays_mysql(MYSQL *conn, struct char_data *ch, int type)
   query_stmt_mysql(conn, parameters, pvt, sql_buf, num_columns, num_parameters, read_player_arrays_from_mysql, ch, MYSQL_QUERY_SELECT);
 
   // free parameters
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 void read_player_arrays_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, void *v_ch, MYSQL_STMT *stmt)
@@ -1420,7 +1419,7 @@ void delete_player_vars_mysql(MYSQL *conn, struct char_data *ch)
 
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_DELETE);
 
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 /* save a character's variables to the database */
@@ -1496,7 +1495,7 @@ void insert_player_vars_mysql(MYSQL *conn, struct char_data *ch)
 
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_INSERT);
 
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 void select_player_vars_mysql(MYSQL *conn, struct char_data *ch)
@@ -1524,7 +1523,7 @@ void select_player_vars_mysql(MYSQL *conn, struct char_data *ch)
   query_stmt_mysql(conn, parameters, pvt, sql_buf, num_columns, num_parameters, read_player_vars_from_mysql, ch, MYSQL_QUERY_SELECT);
 
   // free parameters
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 void read_player_vars_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, void *v_ch, MYSQL_STMT *stmt)
@@ -1607,7 +1606,7 @@ void delete_aliases_mysql(MYSQL *conn, struct char_data *ch)
 
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_DELETE);
 
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 static void insert_aliases_mysql(MYSQL *conn, struct char_data *ch)
@@ -1668,7 +1667,7 @@ static void insert_aliases_mysql(MYSQL *conn, struct char_data *ch)
 
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, ch, MYSQL_QUERY_INSERT);
 
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 static void select_aliases_mysql(MYSQL *conn, struct char_data *ch)
@@ -1695,7 +1694,7 @@ static void select_aliases_mysql(MYSQL *conn, struct char_data *ch)
   query_stmt_mysql(conn, parameters, alias_table_index, sql_buf, num_columns, num_parameters, read_aliases_from_mysql, ch, MYSQL_QUERY_SELECT);
 
   // free parameters
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 void read_aliases_from_mysql(struct mysql_bind_column *fields, int num_fields, int num_rows, void *v_ch, MYSQL_STMT *stmt)

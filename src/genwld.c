@@ -306,7 +306,7 @@ void delete_rooms_mysql(MYSQL *conn, zone_rnum rzone)
 
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, NULL, MYSQL_QUERY_DELETE);
 
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 int save_rooms_mysql(MYSQL *conn, zone_rnum rzone)
@@ -386,7 +386,7 @@ int save_rooms_mysql(MYSQL *conn, zone_rnum rzone)
 /*  delete_rooms_mysql(conn, zone_table[room->zone].number);*/
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, NULL, MYSQL_QUERY_INSERT);
 
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 void delete_exits_mysql(MYSQL *conn, zone_rnum rzone)
@@ -413,7 +413,7 @@ void delete_exits_mysql(MYSQL *conn, zone_rnum rzone)
 
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, NULL, MYSQL_QUERY_DELETE);
 
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 int save_room_exits_mysql(MYSQL *conn, zone_rnum rzone)
@@ -520,7 +520,7 @@ int save_room_exits_mysql(MYSQL *conn, zone_rnum rzone)
   delete_exits_mysql(conn, zone_table[room->zone].number);
   query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, NULL, MYSQL_QUERY_INSERT);
 
-  free_mysql_bind_adapter_parameters(parameters, num_parameters);
+  free_mysql_parameters(parameters, num_parameters);
 }
 
 
