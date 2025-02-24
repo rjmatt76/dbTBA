@@ -20,7 +20,13 @@
 #include "mud_event.h"
 #include "mysql_db.h"
 
-/* This function will copy the strings so be sure you free your own copies of 
+
+void delete_rooms_mysql(MYSQL *conn, zone_rnum rzone);
+int save_rooms_mysql(MYSQL *conn, zone_rnum rzone);
+void delete_exits_mysql(MYSQL *conn, zone_rnum rzone);
+int save_room_exits_mysql(MYSQL *conn, zone_rnum rzone);
+
+/* This function will copy the strings so be sure you free your own copies of
  * the description, title, and such. */
 room_rnum add_room(struct room_data *room)
 {
@@ -261,273 +267,9 @@ int delete_room(room_rnum rnum)
   return TRUE;
 }
 
-cpp_extern const struct mysql_column room_table_index[] =
-{
-  { "Vnum",           MYSQL_TYPE_LONG           },
-  { "Zone",           MYSQL_TYPE_LONG           },
-  { "Name",           MYSQL_TYPE_VAR_STRING     },
-  { "Description",    MYSQL_TYPE_VAR_STRING     },
-  { "SectorType",     MYSQL_TYPE_LONG           },
-  { "RoomFlags_0",    MYSQL_TYPE_LONG           },
-  { "RoomFlags_1",    MYSQL_TYPE_LONG           },
-  { "RoomFlags_2",    MYSQL_TYPE_LONG           },
-  { "RoomFlags_3",    MYSQL_TYPE_LONG           },
-  { "\n",             MYSQL_TYPE_LONG           }
-};
-
-cpp_extern const struct mysql_column room_dir_table_index[] =
-{
-  { "Vnum",           MYSQL_TYPE_LONG           },
-  { "DirectionNum",   MYSQL_TYPE_LONG           },
-  { "Keyword",        MYSQL_TYPE_VAR_STRING     },
-  { "Description",    MYSQL_TYPE_VAR_STRING     },
-  { "ExitInfo",       MYSQL_TYPE_LONG           },
-  { "KeyNum",         MYSQL_TYPE_LONG           },
-  { "ToRoom",         MYSQL_TYPE_LONG           },
-  { "\n",             MYSQL_TYPE_LONG           }
-};
-
-void delete_rooms_mysql(MYSQL *conn, zone_rnum rzone)
-{
-  char sql_buf[MAX_STRING_LENGTH];
-  struct mysql_parameter *parameters;
-  int num_parameters = 1;
-
-  snprintf(sql_buf, sizeof(sql_buf)-1, "DELETE FROM %s.%s WHERE Zone = ?", MYSQL_DB, MYSQL_ROOM_TABLE);
-
-  log("MYSQLINFO: %s", sql_buf);
-  log("%d", num_parameters);
-
-  /* zone number */
-  CREATE(parameters, struct mysql_parameter, num_parameters);
-  parameters[0].data_length = 0;
-  parameters[0].data_type = MYSQL_TYPE_LONG;
-  parameters[0].int_data = rzone;
-
-  query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, NULL, MYSQL_QUERY_DELETE);
-
-  free_mysql_parameters(parameters, num_parameters);
-}
-
-int save_rooms_mysql(MYSQL *conn, zone_rnum rzone)
-{
-  struct mysql_column *col = &room_table_index[0];
-  char sql_buf[MAX_STRING_LENGTH];
-  char value_buf[MAX_STRING_LENGTH] = "\0";
-  char buf[MAX_STRING_LENGTH] = "\0";
-  struct mysql_parameter *parameters;
-  int num_parameters = 0, num_columns = 0, col_num, num_rows = 0, i = 0;
-  struct room_data *room;
-
-  num_columns = get_column_sql(buf, sizeof(buf), &room_table_index);
-
-  for (i = genolc_zone_bottom(rzone); i <= zone_table[rzone].top; i++)
-  {
-    room_rnum r_num;
-    
-    if((r_num = real_room(i)) != NOWHERE) 
-    {
-      num_rows++;
-    }
-  }
-
-  num_parameters = get_parameter_markers_sql(value_buf, sizeof(value_buf), num_columns, num_rows);
-
-  snprintf(sql_buf, sizeof(sql_buf)-1, "INSERT INTO %s.%s (%s) VALUES %s",
-     MYSQL_DB, MYSQL_ROOM_TABLE, buf, value_buf);
-
-  log("MYSQLINFO: %s", sql_buf);
-  log("MYSQLINFO: parameters: %d", num_parameters);
-
-  CREATE(parameters, struct mysql_parameter, num_parameters);
-
-  int parameter_index = 0;
-  for (parameter_index=0,i = genolc_zone_bottom(rzone); i <= zone_table[rzone].top; i++) {
-    room_rnum rnum;
-
-    if ((rnum = real_room(i)) != NOWHERE) {
-
-      room = (world + rnum);
-
-      /* Copy the description and strip off trailing newlines. */
-      strncpy(buf, room->description ? room->description : "Empty room.", sizeof(buf)-1 );
-      strip_cr(buf);
-
-      for(col_num = 0; col_num < num_columns; col_num++, parameter_index++)
-      {
-        parameters[parameter_index].data_type = col[col_num].data_type;
-
-        if(!strcmp(col[col_num].column_name, "Vnum"))
-          parameters[parameter_index].int_data = room->number;
-        else if(!strcmp(col[col_num].column_name, "Zone"))
-          parameters[parameter_index].int_data = zone_table[room->zone].number;
-        else if(!strcmp(col[col_num].column_name, "Name"))
-          parameters[parameter_index].string_data = strdup(room->name?room->name:"Untitled");
-        else if(!strcmp(col[col_num].column_name, "Description"))
-          parameters[parameter_index].string_data = strdup(buf);
-        else if(!strcmp(col[col_num].column_name, "SectorType"))
-          parameters[parameter_index].int_data = room->sector_type;
-        else if(!strcmp(col[col_num].column_name, "RoomFlags_0"))
-          parameters[parameter_index].int_data = room->room_flags[0];
-        else if(!strcmp(col[col_num].column_name, "RoomFlags_1"))
-          parameters[parameter_index].int_data = room->room_flags[1];
-        else if(!strcmp(col[col_num].column_name, "RoomFlags_2"))
-          parameters[parameter_index].int_data = room->room_flags[2];
-        else if(!strcmp(col[col_num].column_name, "RoomFlags_3"))
-          parameters[parameter_index].int_data = room->room_flags[3];
-
-        if(parameters[parameter_index].data_type == MYSQL_TYPE_VAR_STRING && parameters[parameter_index].string_data)
-          parameters[parameter_index].data_length = strlen(parameters[parameter_index].string_data);
-        else
-          parameters[parameter_index].data_length = 0;
-      }
-    }
-  }
-/*  delete_rooms_mysql(conn, zone_table[room->zone].number);*/
-  query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, NULL, MYSQL_QUERY_INSERT);
-
-  free_mysql_parameters(parameters, num_parameters);
-}
-
-void delete_exits_mysql(MYSQL *conn, zone_rnum rzone)
-{
-  char sql_buf[MAX_STRING_LENGTH];
-  struct mysql_parameter *parameters;
-  int num_parameters = 2;
-
-  snprintf(sql_buf, sizeof(sql_buf)-1, "DELETE FROM %s.%s WHERE Vnum >= ? AND VNUM < ?", MYSQL_DB, MYSQL_ROOM_DIR_TABLE);
-
-  log("MYSQLINFO: %s", sql_buf);
-  log("%d", num_parameters);
-
-  /* zone number */
-  CREATE(parameters, struct mysql_parameter, num_parameters);
-  parameters[0].data_length = 0;
-  parameters[0].data_type = MYSQL_TYPE_LONG;
-  parameters[0].int_data = rzone*100;
-
-  //end of zone
-  parameters[1].data_length = 0;
-  parameters[1].data_type = MYSQL_TYPE_LONG;
-  parameters[1].int_data = rzone*100+100;
-
-  query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, NULL, MYSQL_QUERY_DELETE);
-
-  free_mysql_parameters(parameters, num_parameters);
-}
-
-int save_room_exits_mysql(MYSQL *conn, zone_rnum rzone)
-{
-  struct mysql_column *col = &room_dir_table_index[0];
-  char sql_buf[MAX_STRING_LENGTH];
-  char value_buf[MAX_STRING_LENGTH] = "\0";
-  char buf[MAX_STRING_LENGTH] = "\0";
-  char buf1[MAX_STRING_LENGTH];
-  struct mysql_parameter *parameters;
-  int num_parameters = 0, num_columns = 0, num_rows = 0, col_num, i = 0, j = 0, dflag;
-  struct room_data *room;
-
-  num_columns = get_column_sql(buf, sizeof(buf), &room_dir_table_index);
-
-  for (i = genolc_zone_bottom(rzone); i <= zone_table[rzone].top; i++)
-  {
-    room_rnum r_num;
-    
-    if((r_num = real_room(i)) != NOWHERE) 
-    {
-      room = (world + r_num);
-
-      for(j = 0; j < DIR_COUNT; j++) {
-        if (R_EXIT(room, j)) 
-          num_rows++;
-      }
-    }
-  }
-
-  num_parameters = get_parameter_markers_sql(value_buf, sizeof(value_buf), num_columns, num_rows);
-
-  snprintf(sql_buf, sizeof(sql_buf)-1, "INSERT INTO %s.%s (%s) VALUES %s",
-     MYSQL_DB, MYSQL_ROOM_DIR_TABLE, buf, value_buf);
-
-  log("MYSQLINFO: %s", sql_buf);
-  log("MYSQLINFO: parameters: %d", num_parameters);
-
-  CREATE(parameters, struct mysql_parameter, num_parameters);
-
-  int parameter_index = 0;
-  for (parameter_index=0,i = genolc_zone_bottom(rzone); i <= zone_table[rzone].top; i++) {
-    room_rnum rnum;
-
-    if ((rnum = real_room(i)) != NOWHERE) {
-
-      room = (world + rnum);
-
-      for(j = 0; j < DIR_COUNT; j++) {
-
-        if (R_EXIT(room, j)) {
-
-          if (R_EXIT(room, j)->general_description) {
-            strncpy(buf, R_EXIT(room, j)->general_description, sizeof(buf)-1);
-            strip_cr(buf);
-          } else
-            *buf = '\0';
-
-          /* Figure out door flag. */
-          if (IS_SET(R_EXIT(room, j)->exit_info, EX_ISDOOR)) {
-            if (IS_SET(R_EXIT(room, j)->exit_info, EX_PICKPROOF))
-              dflag = 2;
-            else
-              dflag = 1;
-
-            if (IS_SET(R_EXIT(room, j)->exit_info, EX_HIDDEN))
-              dflag += 2;   
-          } else
-            dflag = 0;
-
-          if (R_EXIT(room, j)->keyword)
-            strncpy(buf1, R_EXIT(room, j)->keyword, sizeof(buf1)-1 );
-          else
-            *buf1 = '\0';
-
-          for(col_num = 0; col_num < num_columns; col_num++, parameter_index++)
-          {
-            parameters[parameter_index].data_type = col[col_num].data_type;
-
-            if(!strcmp(col[col_num].column_name, "Vnum"))
-              parameters[parameter_index].int_data = room->number;
-            if(!strcmp(col[col_num].column_name, "DirectionNum"))
-              parameters[parameter_index].int_data = j;
-            else if(!strcmp(col[col_num].column_name, "Keyword"))
-              parameters[parameter_index].string_data = strdup(buf1);
-            else if(!strcmp(col[col_num].column_name, "Description"))
-              parameters[parameter_index].string_data = strdup(buf);
-            else if(!strcmp(col[col_num].column_name, "ExitInfo"))
-              parameters[parameter_index].int_data = dflag;
-            else if(!strcmp(col[col_num].column_name, "KeyNum"))
-              parameters[parameter_index].int_data = R_EXIT(room, j)->key != NOTHING ? R_EXIT(room, j)->key : -1;
-            else if(!strcmp(col[col_num].column_name, "ToRoom"))
-              parameters[parameter_index].int_data = R_EXIT(room, j)->to_room != NOWHERE ? world[R_EXIT(room, j)->to_room].number : -1;
-
-            if(parameters[parameter_index].data_type == MYSQL_TYPE_VAR_STRING && parameters[parameter_index].string_data)
-              parameters[parameter_index].data_length = strlen(parameters[parameter_index].string_data);
-            else
-              parameters[parameter_index].data_length = 0;
-          }
-        }
-      }
-    }
-  }
-  delete_exits_mysql(conn, zone_table[room->zone].number);
-  query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, NULL, MYSQL_QUERY_INSERT);
-
-  free_mysql_parameters(parameters, num_parameters);
-}
-
-
 int save_rooms(zone_rnum rzone)
 {
-  int i;
-  int zrn;
+  int i, zrn;
   struct room_data *room;
   FILE *sf;
   char filename[128];
@@ -535,20 +277,15 @@ int save_rooms(zone_rnum rzone)
   char buf1[MAX_STRING_LENGTH];
   char buf2[MAX_STRING_LENGTH];
 
-  MYSQL *conn = NULL;
-
-  if((conn = create_conn_to_mud_database(conn)) == NULL)
-  {
-    log("MYSQLINFO: Error connecting to database");
-    return -1;
-  }
-
+  /* if you wanted to save all zones at once
   for (zrn = 0; zrn <= top_of_zone_table; zrn++)
   {
-    save_rooms_mysql(conn, zrn);
-    save_room_exits_mysql(conn, zrn);
-  }
-  mysql_close(conn);
+    save_rooms_mysql(db_conn, zrn);
+    save_room_exits_mysql(db_conn, zrn);
+  }*/
+
+  save_rooms_mysql(db_conn, rzone);
+  save_room_exits_mysql(db_conn, rzone);
 
 #if CIRCLE_UNSIGNED_INDEX
   if (rzone == NOWHERE || rzone > top_of_zone_table) {
@@ -748,4 +485,262 @@ int free_room_strings(struct room_data *room)
   }
 
   return TRUE;
+}
+
+const struct mysql_column room_table_index[] =
+{
+  { "Vnum",           MYSQL_TYPE_LONG           },
+  { "Zone",           MYSQL_TYPE_LONG           },
+  { "Name",           MYSQL_TYPE_VAR_STRING     },
+  { "Description",    MYSQL_TYPE_VAR_STRING     },
+  { "SectorType",     MYSQL_TYPE_LONG           },
+  { "RoomFlags_0",    MYSQL_TYPE_LONG           },
+  { "RoomFlags_1",    MYSQL_TYPE_LONG           },
+  { "RoomFlags_2",    MYSQL_TYPE_LONG           },
+  { "RoomFlags_3",    MYSQL_TYPE_LONG           },
+  { "\n",             MYSQL_TYPE_LONG           }
+};
+
+const struct mysql_column room_dir_table_index[] =
+{
+  { "Vnum",           MYSQL_TYPE_LONG           },
+  { "DirectionNum",   MYSQL_TYPE_LONG           },
+  { "Keyword",        MYSQL_TYPE_VAR_STRING     },
+  { "Description",    MYSQL_TYPE_VAR_STRING     },
+  { "ExitInfo",       MYSQL_TYPE_LONG           },
+  { "KeyNum",         MYSQL_TYPE_LONG           },
+  { "ToRoom",         MYSQL_TYPE_LONG           },
+  { "\n",             MYSQL_TYPE_LONG           }
+};
+
+void delete_rooms_mysql(MYSQL *conn, zone_rnum rzone)
+{
+  char sql_buf[MAX_STRING_LENGTH];
+  struct mysql_parameter *parameters;
+  int num_parameters = 1;
+
+  snprintf(sql_buf, sizeof(sql_buf)-1, "DELETE FROM %s.%s WHERE Zone = ?", MYSQL_DB, MYSQL_ROOM_TABLE);
+
+  log("MYSQLINFO: %s | parameters: %d", sql_buf, num_parameters);
+
+  /* zone number */
+  CREATE(parameters, struct mysql_parameter, num_parameters);
+  parameters[0].data_length = 0;
+  parameters[0].data_type = MYSQL_TYPE_LONG;
+  parameters[0].int_data = rzone;
+
+  query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, NULL, MYSQL_QUERY_DELETE);
+
+  free_mysql_parameters(parameters, num_parameters);
+}
+
+int save_rooms_mysql(MYSQL *conn, zone_rnum rzone)
+{
+  struct mysql_column *col = room_table_index;
+  char sql_buf[MAX_STRING_LENGTH];
+  char value_buf[MAX_STRING_LENGTH] = "\0";
+  char buf[MAX_STRING_LENGTH] = "\0";
+  struct mysql_parameter *parameters;
+  int num_parameters = 0, num_columns = 0, col_num, num_rows = 0, i = 0;
+  struct room_data *room;
+
+  num_columns = get_column_sql(buf, sizeof(buf), room_table_index);
+
+  for (i = genolc_zone_bottom(rzone); i <= zone_table[rzone].top; i++)
+  {
+    room_rnum r_num;
+
+    if((r_num = real_room(i)) != NOWHERE)
+    {
+      num_rows++;
+    }
+  }
+
+  num_parameters = get_parameter_markers_sql(value_buf, sizeof(value_buf), num_columns, num_rows);
+
+  snprintf(sql_buf, sizeof(sql_buf)-1, "INSERT INTO %s.%s (%s) VALUES %s",
+     MYSQL_DB, MYSQL_ROOM_TABLE, buf, value_buf);
+
+  log("MYSQLINFO: %s | parameters: %d", sql_buf, num_parameters);
+
+  CREATE(parameters, struct mysql_parameter, num_parameters);
+
+  int parameter_index = 0;
+  for (parameter_index=0,i = genolc_zone_bottom(rzone); i <= zone_table[rzone].top; i++) {
+    room_rnum rnum;
+
+    if ((rnum = real_room(i)) != NOWHERE) {
+
+      room = (world + rnum);
+
+      /* Copy the description and strip off trailing newlines. */
+      strncpy(buf, room->description ? room->description : "Empty room.", sizeof(buf)-1 );
+      strip_cr(buf);
+
+      for(col_num = 0; col_num < num_columns; col_num++, parameter_index++)
+      {
+        parameters[parameter_index].data_type = col[col_num].data_type;
+
+        if(!strcmp(col[col_num].column_name, "Vnum"))
+          parameters[parameter_index].int_data = room->number;
+        else if(!strcmp(col[col_num].column_name, "Zone"))
+          parameters[parameter_index].int_data = zone_table[room->zone].number;
+        else if(!strcmp(col[col_num].column_name, "Name"))
+          parameters[parameter_index].string_data = strdup(room->name?room->name:"Untitled");
+        else if(!strcmp(col[col_num].column_name, "Description"))
+          parameters[parameter_index].string_data = strdup(buf);
+        else if(!strcmp(col[col_num].column_name, "SectorType"))
+          parameters[parameter_index].int_data = room->sector_type;
+        else if(!strcmp(col[col_num].column_name, "RoomFlags_0"))
+          parameters[parameter_index].int_data = room->room_flags[0];
+        else if(!strcmp(col[col_num].column_name, "RoomFlags_1"))
+          parameters[parameter_index].int_data = room->room_flags[1];
+        else if(!strcmp(col[col_num].column_name, "RoomFlags_2"))
+          parameters[parameter_index].int_data = room->room_flags[2];
+        else if(!strcmp(col[col_num].column_name, "RoomFlags_3"))
+          parameters[parameter_index].int_data = room->room_flags[3];
+
+        if(parameters[parameter_index].data_type == MYSQL_TYPE_VAR_STRING && parameters[parameter_index].string_data)
+          parameters[parameter_index].data_length = strlen(parameters[parameter_index].string_data);
+        else
+          parameters[parameter_index].data_length = 0;
+      }
+    }
+  }
+  delete_rooms_mysql(conn, zone_table[rzone].number);
+  query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, NULL, MYSQL_QUERY_INSERT);
+
+  free_mysql_parameters(parameters, num_parameters);
+}
+
+void delete_exits_mysql(MYSQL *conn, zone_rnum rzone)
+{
+  char sql_buf[MAX_STRING_LENGTH];
+  struct mysql_parameter *parameters;
+  int num_parameters = 2;
+
+  snprintf(sql_buf, sizeof(sql_buf)-1, "DELETE FROM %s.%s WHERE Vnum >= ? AND VNUM < ?", MYSQL_DB, MYSQL_ROOM_DIR_TABLE);
+
+  log("MYSQLINFO: %s | parameters: %d", sql_buf, num_parameters);
+
+  /* zone number */
+  CREATE(parameters, struct mysql_parameter, num_parameters);
+  parameters[0].data_length = 0;
+  parameters[0].data_type = MYSQL_TYPE_LONG;
+  parameters[0].int_data = rzone*100;
+
+  //end of zone
+  parameters[1].data_length = 0;
+  parameters[1].data_type = MYSQL_TYPE_LONG;
+  parameters[1].int_data = rzone*100+100;
+
+  query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, NULL, MYSQL_QUERY_DELETE);
+
+  free_mysql_parameters(parameters, num_parameters);
+}
+
+int save_room_exits_mysql(MYSQL *conn, zone_rnum rzone)
+{
+  struct mysql_column *col = room_dir_table_index;
+  char sql_buf[MAX_STRING_LENGTH];
+  char value_buf[MAX_STRING_LENGTH] = "\0";
+  char buf[MAX_STRING_LENGTH] = "\0";
+  char buf1[MAX_STRING_LENGTH];
+  struct mysql_parameter *parameters;
+  int num_parameters = 0, num_columns = 0, num_rows = 0, col_num, i = 0, j = 0, dflag;
+  struct room_data *room;
+
+  num_columns = get_column_sql(buf, sizeof(buf), room_dir_table_index);
+
+  for (i = genolc_zone_bottom(rzone); i <= zone_table[rzone].top; i++)
+  {
+    room_rnum r_num;
+
+    if((r_num = real_room(i)) != NOWHERE)
+    {
+      room = (world + r_num);
+
+      for(j = 0; j < DIR_COUNT; j++) {
+        if (R_EXIT(room, j))
+          num_rows++;
+      }
+    }
+  }
+
+  num_parameters = get_parameter_markers_sql(value_buf, sizeof(value_buf), num_columns, num_rows);
+
+  snprintf(sql_buf, sizeof(sql_buf)-1, "INSERT INTO %s.%s (%s) VALUES %s",
+     MYSQL_DB, MYSQL_ROOM_DIR_TABLE, buf, value_buf);
+
+//  log("MYSQLINFO: %s | parameters: %d", sql_buf, num_parameters);
+
+  CREATE(parameters, struct mysql_parameter, num_parameters);
+
+  int parameter_index = 0;
+  for (parameter_index=0,i = genolc_zone_bottom(rzone); i <= zone_table[rzone].top; i++) {
+    room_rnum rnum;
+
+    if ((rnum = real_room(i)) != NOWHERE) {
+
+      room = (world + rnum);
+
+      for(j = 0; j < DIR_COUNT; j++) {
+
+        if (R_EXIT(room, j)) {
+
+          if (R_EXIT(room, j)->general_description) {
+            strncpy(buf, R_EXIT(room, j)->general_description, sizeof(buf)-1);
+            strip_cr(buf);
+          } else
+            *buf = '\0';
+
+          /* Figure out door flag. */
+          if (IS_SET(R_EXIT(room, j)->exit_info, EX_ISDOOR)) {
+            if (IS_SET(R_EXIT(room, j)->exit_info, EX_PICKPROOF))
+              dflag = 2;
+            else
+              dflag = 1;
+
+            if (IS_SET(R_EXIT(room, j)->exit_info, EX_HIDDEN))
+              dflag += 2;
+          } else
+            dflag = 0;
+
+          if (R_EXIT(room, j)->keyword)
+            strncpy(buf1, R_EXIT(room, j)->keyword, sizeof(buf1)-1 );
+          else
+            *buf1 = '\0';
+
+          for(col_num = 0; col_num < num_columns; col_num++, parameter_index++)
+          {
+            parameters[parameter_index].data_type = col[col_num].data_type;
+
+            if(!strcmp(col[col_num].column_name, "Vnum"))
+              parameters[parameter_index].int_data = room->number;
+            if(!strcmp(col[col_num].column_name, "DirectionNum"))
+              parameters[parameter_index].int_data = j;
+            else if(!strcmp(col[col_num].column_name, "Keyword"))
+              parameters[parameter_index].string_data = strdup(buf1);
+            else if(!strcmp(col[col_num].column_name, "Description"))
+              parameters[parameter_index].string_data = strdup(buf);
+            else if(!strcmp(col[col_num].column_name, "ExitInfo"))
+              parameters[parameter_index].int_data = dflag;
+            else if(!strcmp(col[col_num].column_name, "KeyNum"))
+              parameters[parameter_index].int_data = R_EXIT(room, j)->key != NOTHING ? R_EXIT(room, j)->key : -1;
+            else if(!strcmp(col[col_num].column_name, "ToRoom"))
+              parameters[parameter_index].int_data = R_EXIT(room, j)->to_room != NOWHERE ? world[R_EXIT(room, j)->to_room].number : -1;
+
+            if(parameters[parameter_index].data_type == MYSQL_TYPE_VAR_STRING && parameters[parameter_index].string_data)
+              parameters[parameter_index].data_length = strlen(parameters[parameter_index].string_data);
+            else
+              parameters[parameter_index].data_length = 0;
+          }
+        }
+      }
+    }
+  }
+  delete_exits_mysql(conn, zone_table[room->zone].number);
+  query_stmt_mysql(conn, parameters, NULL, sql_buf, 0, num_parameters, NULL, NULL, MYSQL_QUERY_INSERT);
+
+  free_mysql_parameters(parameters, num_parameters);
 }

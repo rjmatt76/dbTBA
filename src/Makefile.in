@@ -5,7 +5,7 @@
 CC = @CC@
 
 # Any special flags you want to pass to the compiler
-MYFLAGS = @MYFLAGS@
+MYFLAGS = @MYFLAGS@ @MYSQL_CFLAGS@
 
 #flags for profiling (see hacker.doc for more information)
 PROFILE = 
@@ -18,7 +18,7 @@ BINDIR = ../bin
 
 CFLAGS = @CFLAGS@ $(MYFLAGS) $(PROFILE)
 
-LIBS = @LIBS@ @CRYPTLIB@ @NETLIB@
+LIBS = @LIBS@ @CRYPTLIB@ @NETLIB@ @MYSQL_LIBS@
 
 SRCFILES := $(wildcard *.c)
 OBJFILES := $(patsubst %.c,%.o,$(SRCFILES))  

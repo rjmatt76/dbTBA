@@ -22,7 +22,6 @@
 #include "config.h"
 #include "modify.h"
 #include "genolc.h" /* for strip_cr and sprintascii */
-#include "players.h"
 #include "mysql_db.h"
 
 /* these factors should be unique integers */
@@ -51,7 +50,7 @@ static void Crash_cryosave(struct char_data *ch, int cost);
 static int Crash_load_objs(struct char_data *ch);
 static int handle_obj(struct obj_data *obj, struct char_data *ch, int locate, struct obj_data **cont_rows);
 static int objsave_write_rentcode(FILE *fl, int rentcode, int cost_per_day, struct char_data *ch);
-
+void player_object_mysql_parameter(struct mysql_parameter *parameters, int id, int loc, int num_columns, struct obj_data *obj);
 cpp_extern struct mysql_column player_objects_table_index[] =
 {
   { "PlayerId",       MYSQL_TYPE_LONG           },

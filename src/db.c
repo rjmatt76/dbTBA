@@ -40,6 +40,7 @@
 #include "screen.h"
 #include <sys/stat.h>
 #include "mysql_db.h"
+#include "mysql_players.h"
 
 /*  declarations of most of the 'global' variables */
 struct config_data config_info; /* Game configuration list.	 */
@@ -709,13 +710,17 @@ void boot_db(void)
   log("Loading help entries.");
   index_boot(DB_BOOT_HLP);
 
-  #include "players.h"
+  if(connect_primary_mysql_db())
+    log("Connected to mysql server.");
 
-  log("Connect to mysql server.");
-  get_mysql_database_conn();
+  log("Creating mud database tables.");
+  create_mud_db_tables();
 
   log("Generating player index.");
-  build_player_index();
+  if(USING_MYSQL_DATABASE_FOR_PLAYERFILE == TRUE)
+    mysql_build_player_index();
+  else
+    build_player_index();
 
   if (auto_pwipe) {
     log("Cleaning out inactive pfiles.");
